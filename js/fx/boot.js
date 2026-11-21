@@ -4,11 +4,11 @@
    y entra directo a navegar por CALOT-OS mientras la Dra. Hernández activa el examen.
    ========================================================================== */
 
-import { store, questions, todayISO, loadStoreData } from '../store.js?v=20261122c';
+import { store, questions, todayISO, loadStoreData } from '../store.js?v=20261122d';
 import { esc } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122c';
-import { unlockPortalAudio } from './portal-audio.js?v=20261122c';
-import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody, doctorTitle } from '../perfil.js?v=20261122c';
+import { playUiSfx } from './audio.js?v=20261122d';
+import { unlockPortalAudio } from './portal-audio.js?v=20261122d';
+import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody, doctorTitle } from '../perfil.js?v=20261122d';
 
 export const BOOT_KEY = 'blackops:booted:v4';
 export const ROLE_KEY = 'calot:rol';
@@ -22,8 +22,8 @@ const dueLabel = (n) => `${n} ${n === 1 ? 'pendiente' : 'pendientes'}`;
 
 export function loadBootData() {
   return Promise.all([
-    import('../data/temario_aprende.js?v=20261122c'),
-    import('../data/catalogo_recursos.js?v=20261122c'),
+    import('../data/temario_aprende.js?v=20261122d'),
+    import('../data/catalogo_recursos.js?v=20261122d'),
     loadStoreData(),
   ]).then(([t, c]) => {
     TEMARIO_APRENDE = t.TEMARIO_APRENDE;
@@ -66,7 +66,7 @@ export function renderPulsingCoreHTML({ isOrbit = false } = {}) {
       <span class="boot-sweep"></span>
       <span class="boot-orbit"><i></i></span>
       <span class="boot-orb">
-        <img src="assets/calot-hero.png?v=20261122c" alt="" width="96" height="96" decoding="async" />
+        <img src="assets/calot-hero.png?v=20261122d" alt="" width="96" height="96" decoding="async" />
         <svg class="boot-ecg" viewBox="0 0 120 32" preserveAspectRatio="none">
           <path class="boot-ecg-base" d="M0 16 H32 L40 16 L46 6 L53 26 L60 4 L67 22 L73 16 H120" />
           <path class="boot-ecg-pulse" d="M0 16 H32 L40 16 L46 6 L53 26 L60 4 L67 22 L73 16 H120" />
@@ -88,7 +88,7 @@ export function renderBootPortadaHTML({ showDocente = false } = {}) {
           <div class="r2-roster-brand">
             <div class="login-eye is-compact" aria-hidden="true">
               <span class="login-ring is-a"></span><span class="login-ring is-b"></span><span class="login-scan"></span>
-              <img src="assets/calot-hero.png?v=20261122c" alt="" width="88" height="88" decoding="async" />
+              <img src="assets/calot-hero.png?v=20261122d" alt="" width="88" height="88" decoding="async" />
             </div>
             <div>
               <p class="login-kicker t-mono"><span class="login-lock" aria-hidden="true"></span>HGR 72 · CIRUGÍA GENERAL · GENERACIÓN R2</p>
@@ -336,5 +336,5 @@ export function mountInitialBootGate(onEnterApp) {
 /** En Black Ops entran directo a navegar o al panel de control sin intro de 60 s que estorbe. */
 export function playRoleIntro() {
   if (isAdscrito()) return;
-  import('./voice.js?v=20261122c').then((m) => m.voiceWelcome?.(0.35)).catch(() => {});
+  import('./voice.js?v=20261122d').then((m) => m.voiceWelcome?.(0.35)).catch(() => {});
 }

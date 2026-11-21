@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261122c';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122c';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122c';
+import { store, questions, loadStoreData } from '../store.js?v=20261122d';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122d';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122d';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122c';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122c';
-import { playCalotEvaluation } from './eval-cinematic.js?v=20261122c';
-import { detectCurrentBrowser } from './browser-check.js?v=20261122c';
+import { playUiSfx } from './audio.js?v=20261122d';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122d';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122d';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122d';
 
 const ENDPOINT = '/api/examen';
 
@@ -92,9 +92,9 @@ async function buildQuestionPool(topic, count, seedStr) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261122c'),
-        import('../data/juegos_drive_v1.js?v=20261122c'),
-        import('../data/juegos_drive_v2.js?v=20261122c'),
+        import('../data/juegos_argos.js?v=20261122d'),
+        import('../data/juegos_drive_v1.js?v=20261122d'),
+        import('../data/juegos_drive_v2.js?v=20261122d'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -360,7 +360,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122c" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122d" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -681,7 +681,7 @@ function speakExamWarning() {
 function startExamAudioSequence(timers) {
   playSoftExamAlarm();
   timers.push(setTimeout(startExamBed, 900));
-  timers.push(setTimeout(speakExamWarning, 1700));
+  timers.push(setTimeout(speakExamWarning, 1600));
 }
 
 function stopExamAudio() {
@@ -691,10 +691,10 @@ function stopExamAudio() {
 }
 
 /* ------------------------------------------------------------------
-   Fase 1 · La app se va bloqueando pieza por pieza (≈9 s)
+   Fase 1 · La app se va bloqueando pieza por pieza (≈10,5 s, cubre la voz de CALOT)
    Fase 3 · «Evaluación en curso · no intentes hacer trampa» (≈6 s)
    ------------------------------------------------------------------ */
-const PRELOCK_MS = 9000;
+const PRELOCK_MS = 10500; // la voz de CALOT (~7,2 s desde 1,6 s) termina antes de que se cierren las persianas
 const EVALPHASE_MS = 6500;
 const PRELOCK_MSGS = [
   'LA DRA. HERNÁNDEZ INICIÓ EL EXAMEN · TOMANDO EL CONTROL…',
@@ -911,7 +911,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261122c" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122d" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
