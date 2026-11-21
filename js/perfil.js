@@ -11,7 +11,6 @@ export const R2_RESIDENTS = [
   { id: 'diana',     name: 'Dra. Diana',          short: 'Diana',           ini: 'DI', tema: 'Neoplasias · Delgado · Colon' },
   { id: 'alejandro', name: 'Dr. Alejandro',       short: 'Alejandro',       ini: 'AJ', tema: 'Oncología · Estómago · Diverticular' },
   { id: 'luis',      name: 'Dr. Luis',            short: 'Luis',            ini: 'LU', tema: 'Pared · Fístulas · Colitis' },
-  { id: 'angel_c',   name: 'Dr. Ángel Contreras', short: 'Ángel Contreras', ini: 'AC', tema: 'Hernias · Isquemia · C. difficile' },
   { id: 'isahy',     name: 'Dr. Isahy',           short: 'Isahy',           ini: 'IS', tema: 'Hernias ventrales · Delgado · Colon' },
   { id: 'ulises',    name: 'Dr. Ulises',          short: 'Ulises',          ini: 'UL', tema: 'Hernia inguinal · Esófago · Colon' },
   { id: 'delia',     name: 'Dra. Delia',          short: 'Delia',           ini: 'DE', tema: 'Esófago · Delgado · Colon' },

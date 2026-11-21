@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261122d';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122d';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122d';
+import { store, questions, loadStoreData } from '../store.js?v=20261122e';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122e';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122e';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122d';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122d';
-import { playCalotEvaluation } from './eval-cinematic.js?v=20261122d';
-import { detectCurrentBrowser } from './browser-check.js?v=20261122d';
+import { playUiSfx } from './audio.js?v=20261122e';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122e';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122e';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122e';
 
 const ENDPOINT = '/api/examen';
 
@@ -92,9 +92,9 @@ async function buildQuestionPool(topic, count, seedStr) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261122d'),
-        import('../data/juegos_drive_v1.js?v=20261122d'),
-        import('../data/juegos_drive_v2.js?v=20261122d'),
+        import('../data/juegos_argos.js?v=20261122e'),
+        import('../data/juegos_drive_v1.js?v=20261122e'),
+        import('../data/juegos_drive_v2.js?v=20261122e'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -268,7 +268,7 @@ export function initExamLockdownMonitor() {
         return;
       }
       // Si está dentro de la consola docente (#/adscrito), no se bloquea la consola en sí
-      if (isOnAdscritoView() && isAdscrito()) {
+      if (isAdscrito() && (isOnAdscritoView() || !sessionStorage.getItem(PREVIEW_KEY))) {
         ensureExplorePill(false);
         if (lockdownRoot) closeLockdownOverlay();
         if (blockedRoot) closeBlockedScreen();
@@ -360,7 +360,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122d" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122e" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -449,8 +449,12 @@ function paintAllCanvases(scope) {
    Examen blindado
    ------------------------------------------------------------------ */
 const TAKEOVER_SEC = 8;
+// En el dispositivo de la docente (vista previa) el bloqueo no suena: el audio es solo para los celulares R2
+let silentLock = false;
+const PREVIEW_KEY = 'bo:docente-preview';
 
 function makeSfxAudio(file, vol = 0.85) {
+  if (silentLock) return null;
   try {
     const a = new Audio(`assets/sfx/${file}`);
     a.preload = 'auto';
@@ -464,6 +468,7 @@ function makeSfxAudio(file, vol = 0.85) {
 }
 
 function playSynthTakeoverAudio() {
+  if (silentLock) return;
   try {
     const eng = getEngine();
     if (!eng || eng.ctx.state !== 'running') return;
@@ -679,6 +684,7 @@ function speakExamWarning() {
 
 /** Fase 1 arranca con: aviso suave → voz de CALOT → música baja. */
 function startExamAudioSequence(timers) {
+  if (silentLock || isAdscrito()) return; // nunca en el panel/dispositivo de la docente
   playSoftExamAlarm();
   timers.push(setTimeout(startExamBed, 900));
   timers.push(setTimeout(speakExamWarning, 1600));
@@ -704,6 +710,7 @@ const PRELOCK_MSGS = [
 ];
 
 function synthBlip(freq = 520, dur = 0.07, vol = 0.12, type = 'square') {
+  if (silentLock) return;
   try {
     const eng = getEngine();
     if (!eng || eng.ctx.state !== 'running') return;
@@ -865,6 +872,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
 
   const p = residentProfile || perfil();
   const canReturnToDocente = isAdscrito();
+  silentLock = isAdscrito();
   const persisted = loadLocal(exam.sessionId, p.id);
   const resuming = Boolean(persisted?.started);
 
@@ -911,7 +919,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261122d" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122e" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
@@ -1122,7 +1130,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     if (wasLocked && !nowLocked) {
       cheatModal.hidden = true;
       toast('La Dra. Hernández desbloqueó tu examen. Continúa.');
-      playUiSfx('ok');
+      if (!silentLock) playUiSfx('ok');
     } else if (!wasLocked && nowLocked) {
       renderCheatWarning();
     }
@@ -1139,7 +1147,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   const registerExit = (kind, sec, q, why, d) => {
     addEvent({ k: kind, q, d, s: sec, why });
     if (COUNTED.has(kind)) {
-      playUiSfx('bad');
+      if (!silentLock) playUiSfx('bad');
       updateHud();
       renderCheatWarning();
     }
@@ -1405,7 +1413,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     }
     st.answers[qi] = { i: chosenIdx, ts: now };
     persist();
-    playUiSfx('click');
+    if (!silentLock) playUiSfx('click');
     tauntLoop?.touch?.();
     // Avanza sola a la siguiente pregunta sin contestar (si hay)
     const nextUn = st.answers.findIndex((a, i) => !a && i > qi);
@@ -1496,6 +1504,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     if (e.target.closest('[data-bo-back-docente]')) {
       e.preventDefault();
       closeLockdownOverlay();
+      try { sessionStorage.removeItem(PREVIEW_KEY); } catch {}
       location.hash = '#/adscrito';
       return;
     }
@@ -1576,7 +1585,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     el.classList.add('is-done');
     const ic = el.querySelector('i');
     if (ic) ic.textContent = '🔒';
-    playUiSfx('click');
+    if (!silentLock) playUiSfx('click');
   };
   const startTakeover = () => {
     if (!root.isConnected) return;
@@ -1585,7 +1594,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     rafId = requestAnimationFrame(drawMatrix);
     triggerTakeoverFlash(false);
     try { navigator.vibrate?.([220, 70, 260, 70, 340, 90, 480]); } catch {}
-    playUiSfx('bad');
+    if (!silentLock) playUiSfx('bad');
     playSynthTakeoverAudio();
     alertAudio?.play().catch(() => {});
     glitchAudio?.play().catch(() => {});
@@ -1621,7 +1630,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         }
         if (countSec <= 3) {
           triggerTakeoverFlash(false);
-          playUiSfx('nav');
+          if (!silentLock) playUiSfx('nav');
           try { navigator.vibrate?.(80); } catch {}
         }
       } else {

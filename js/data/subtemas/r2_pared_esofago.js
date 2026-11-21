@@ -1,6 +1,6 @@
 // Hojas por subtema de los módulos R2: pared abdominal y hernias (pared) y esófago (esofago).
 // Conserva e integra el contenido de temario_aprende_base.js, resúmenes/puntos clave de Drive y temario PUEM HGR 72.
-import { sheet } from './hoja.js?v=20261122d';
+import { sheet } from './hoja.js?v=20261122e';
 
 export const R2_PARED_ESOFAGO = {
   pared: [

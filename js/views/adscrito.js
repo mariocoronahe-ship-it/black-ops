@@ -1,17 +1,17 @@
 /* ==========================================================================
    CALOT-OS · Black Ops · Centro de Control de Examen R2 (Dra. Hernández)
-   Monitoreo en tiempo real de los 14 residentes R2 mientras navegan,
+   Monitoreo en tiempo real de los residentes R2 mientras navegan,
    botón de bloqueo simultáneo para lanzar el examen, vigilancia anti-trampa
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261122d';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122d';
+import { icon } from '../icons.js?v=20261122e';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122e';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122d';
-import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122d';
-import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122d';
-import { dashboardHTML } from './adscrito-dashboard.js?v=20261122d';
+import { playUiSfx } from '../fx/audio.js?v=20261122e';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122e';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122e';
+import { dashboardHTML } from './adscrito-dashboard.js?v=20261122e';
 
 export const section = 'biblio';
 
@@ -331,28 +331,61 @@ function resultsHTML(rowId) {
   }).join('')}</ol>`;
 }
 
-/** Tarjeta compacta del monitoreo: nombre · pregunta en la que va · salidas. Detalles al tocar. */
+/* ------------------------------------------------------------------
+   Sala de control · monitoreo en vivo en placas compactas
+   ------------------------------------------------------------------ */
 let openCardId = null;
-function rosterCardHTML(r, ex) {
+let rosterShown = false;           // la entrada escalonada solo la primera vez
+const prevRoster = new Map();      // id → { st, exits } para animar cambios de estado
+
+const ST_LABEL = {
+  idle: 'SIN ENTRAR', nav: 'EN LÍNEA', exam: 'CONTESTANDO', done: 'TERMINÓ', out: 'FUERA DE PANTALLA', locked: 'BLOQUEADO',
+};
+
+function rosterState(r, ex) {
   const exits = r.events.filter((e) => e.k === 'salida' || e.k === 'recarga').length || r.strikes || 0;
   const now = Date.now();
   const inExam = r.state === 'en_examen' || (ex.active && r.hasJoined && r.state !== 'entregado' && r.state !== 'bloqueado_trampa');
-  const outNow = inExam && r.lastSeen && now - r.lastSeen > 12000;
-  let where;
-  let cls = '';
-  if (r.state === 'sin_entrar') { where = 'Sin entrar'; cls = 'is-idle'; }
-  else if (r.state === 'entregado') { where = `Terminó${r.scorePct != null ? ` · ${r.scorePct}%` : ''}`; cls = 'is-done'; }
-  else if (r.state === 'bloqueado_trampa') { where = '🔒 Bloqueado'; cls = 'is-locked'; }
-  else if (inExam) { where = `P ${Math.min(r.qTotal, (r.qIndex || 0) + 1)}/${r.qTotal}`; cls = 'is-exam'; }
-  else { where = 'Explorando'; cls = 'is-nav'; }
+  let st = 'nav';
+  if (r.state === 'sin_entrar') st = 'idle';
+  else if (r.state === 'entregado') st = 'done';
+  else if (r.state === 'bloqueado_trampa') st = 'locked';
+  else if (inExam) st = r.lastSeen && now - r.lastSeen > 12000 ? 'out' : 'exam';
+  else if (!r.isOnline) st = 'idle';
+  const q = Math.min(r.qTotal, (r.qIndex || 0) + 1);
+  const pct = st === 'done' ? 100 : r.qTotal ? Math.round((r.answered / r.qTotal) * 100) : 0;
+  return { st, exits, q, pct };
+}
+
+function rosterCardHTML(r, ex, idx) {
+  const { st, exits, q, pct } = rosterState(r, ex);
+  const prev = prevRoster.get(r.id);
+  const changed = prev && prev.st !== st;
+  const newExit = prev && exits > prev.exits;
+  prevRoster.set(r.id, { st, exits });
+  let qTxt;
+  if (st === 'done') qTxt = r.scorePct != null ? `${r.scorePct}%` : 'Terminó';
+  else if (st === 'exam' || st === 'out' || st === 'locked') qTxt = `P ${q}/${r.qTotal}`;
+  else if (st === 'nav') qTxt = esc(r.section || 'Explorando');
+  else qTxt = '—';
   const open = openCardId === r.id;
   const badBrowser = r.browser && !r.browser.allowed;
+  const cls = [`s-${st}`, exits ? 'has-exits' : '', changed ? 'is-changed' : '', newExit ? 'is-newexit' : '', open ? 'is-open' : ''].join(' ');
   return `
-    <article class="bo-rc ${cls} ${exits || outNow ? 'has-exits' : ''} ${outNow ? 'is-out' : ''} ${open ? 'is-open' : ''}" role="listitem">
-      <button type="button" class="bo-rc-main" data-bo-card="${esc(r.id)}" aria-expanded="${open}">
-        <span class="bo-rc-name">${badBrowser ? '⛔ ' : ''}${esc(r.name)}</span>
-        <span class="bo-rc-q mono">${where}</span>
-        <span class="bo-rc-ex mono" title="Salidas de pantalla">${outNow ? 'FUERA · ' : ''}${exits} ${exits === 1 ? 'salida' : 'salidas'}</span>
+    <article class="bo-rc ${cls}" role="listitem" style="--i:${idx};--p:${pct}">
+      <button type="button" class="bo-rc-main" data-bo-card="${esc(r.id)}" aria-expanded="${open}" aria-label="${esc(r.name)} · ${ST_LABEL[st]}">
+        <span class="bo-rc-top">
+          <span class="bo-rc-ini" aria-hidden="true">${esc(r.ini)}</span>
+          <span class="bo-rc-id"><b>${badBrowser ? '⛔ ' : ''}${esc(r.name)}</b><small class="mono">EXP · R2-${String(idx + 1).padStart(2, '0')}</small></span>
+          <i class="bo-rc-led" aria-hidden="true"></i>
+        </span>
+        <span class="bo-rc-mid mono">
+          <span class="bo-rc-q">${qTxt}</span>
+          <span class="bo-rc-ex" title="Salidas de pantalla">⚠ ${exits}</span>
+        </span>
+        <span class="bo-rc-bar" aria-hidden="true"><i></i></span>
+        <span class="bo-rc-state mono">${ST_LABEL[st]}</span>
+        ${st === 'out' ? '<span class="bo-rc-alert mono" aria-hidden="true">⚠ FUERA AHORA</span>' : ''}
       </button>
       ${open ? `
       <div class="bo-rc-more">
@@ -367,6 +400,38 @@ function rosterCardHTML(r, ex) {
         ${resultsOpenFor === r.id ? `<div class="bo-results">${resultsHTML(r.id)}</div>` : ''}
       </div>` : ''}
     </article>`;
+}
+
+function controlRoomHTML(rows, ex) {
+  const states = rows.map((r) => rosterState(r, ex));
+  const total = rows.length;
+  const online = states.filter((x) => x.st !== 'idle').length;
+  const answering = states.filter((x) => x.st === 'exam').length;
+  const done = states.filter((x) => x.st === 'done').length;
+  const alerts = states.filter((x) => x.st === 'out' || x.st === 'locked').length + states.reduce((a, x) => a + (x.st === 'exam' && x.exits ? 1 : 0), 0);
+  const first = !rosterShown;
+  rosterShown = true;
+  const stat = (n, of, label, cls) => `<div class="bo-ctl-stat ${cls}"><b class="mono">${n}${of != null ? `<small>/${of}</small>` : ''}</b><span class="mono">${label}</span></div>`;
+  return `
+  <section class="card bo-ctl ${first ? 'is-first' : ''} ${ex.active ? 'is-live' : ''}" data-wing-enter>
+    <div class="bo-ctl-bg" aria-hidden="true"><i class="bo-ctl-radar"></i><i class="bo-ctl-scan"></i><i class="bo-ctl-grid"></i></div>
+    <header class="bo-ctl-head">
+      <div class="bo-ctl-title">
+        <span class="mono bo-ctl-kicker"><i class="bo-ctl-rec"></i>${ex.active ? 'SALA DE CONTROL · EXAMEN EN CURSO' : 'SALA DE CONTROL · EN ESPERA'}</span>
+        <h2>Monitoreo en vivo</h2>
+        <span class="mono muted bo-ctl-hint">Toca una placa para ver detalles</span>
+      </div>
+      <div class="bo-ctl-stats">
+        ${stat(online, total, 'CONECTADOS', 'is-cyan')}
+        ${stat(answering, null, 'CONTESTANDO', 'is-green')}
+        ${stat(done, null, 'TERMINADOS', 'is-blue')}
+        ${stat(alerts, null, 'ALERTAS', alerts ? 'is-red is-hot' : 'is-red')}
+      </div>
+    </header>
+    <div class="bo-roster" role="list">
+      ${rows.map((r, i) => rosterCardHTML(r, ex, i)).join('')}
+    </div>
+  </section>`;
 }
 
 export function render() {
@@ -399,15 +464,17 @@ export function render() {
     <div class="wing-main-row">
       <div>
         <h1>Control de Examen <em>Generación R2</em></h1>
-        <p class="wing-lead">Mientras el examen está inactivo, los 14 residentes R2 pueden elegir su tarjeta y navegar por la plataforma. Al presionar <b>Bloquear plataforma e iniciar examen</b>, a todos se les congela la interfaz con una animación simultánea y comienza la evaluación con detector anti-trampa.</p>
+        <p class="wing-lead">Mientras el examen está inactivo, los ${R2_RESIDENTS.length} residentes R2 pueden elegir su tarjeta y navegar por la plataforma. Al presionar <b>Bloquear plataforma e iniciar examen</b>, a todos se les congela la interfaz con una animación simultánea y comienza la evaluación con detector anti-trampa.</p>
       </div>
     </div>
   </header>
 
+  ${controlRoomHTML(rows, ex)}
+
   <div class="ads-kpis" data-wing-enter>
     <article class="card lamp" style="--c:var(--cyan)">
       <p class="mono">R2 conectados</p>
-      <div class="big"><span>${conectados}<small>/14</small></span></div>
+      <div class="big"><span>${conectados}<small>/${R2_RESIDENTS.length}</small></span></div>
       <p class="muted"><b>${navegando}</b> explorando la app · <b>${enExamen}</b> contestando</p>
     </article>
     <article class="card lamp" style="--c:var(--crimson)">
@@ -417,7 +484,7 @@ export function render() {
     </article>
     <article class="card lamp" style="--c:var(--repaso)">
       <p class="mono">Exámenes entregados</p>
-      <div class="big"><span>${entregadosList.length}<small>/${conectados || 14}</small></span></div>
+      <div class="big"><span>${entregadosList.length}<small>/${conectados || R2_RESIDENTS.length}</small></span></div>
       <p class="muted">Promedio actual: <b>${prom}%</b></p>
     </article>
     <article class="card lamp ads-kpi-alert" style="--c:var(--crimson)">
@@ -503,15 +570,6 @@ export function render() {
     </div>
   </section>
 
-  <section class="card bo-roster-card" data-wing-enter>
-    <div class="ads-sec-head">
-      <h2>Monitoreo en vivo · 14 R2</h2>
-      <span class="mono muted bo-roster-legend">Toca una tarjeta para ver detalles</span>
-    </div>
-    <div class="bo-roster" role="list">
-      ${rows.map((r) => rosterCardHTML(r, ex)).join('')}
-    </div>
-  </section>
 </div>`;
 }
 
@@ -765,6 +823,7 @@ export function mount(root, rerender) {
     }
 
     if (act === 'preview-lock') {
+      try { sessionStorage.setItem('bo:docente-preview', '1'); } catch {}
       location.hash = '#/inicio';
       return;
     }

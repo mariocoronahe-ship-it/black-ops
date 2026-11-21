@@ -1,7 +1,7 @@
 // Cross-device sync: pulls on open/focus, pushes 2 s after each local change.
 // The sync code lives only in this device's localStorage.
-import { store, mergeStates } from './store.js?v=20261122d';
-import { perfil, perfilId } from "./perfil.js?v=20261122d";
+import { store, mergeStates } from './store.js?v=20261122e';
+import { perfil, perfilId } from "./perfil.js?v=20261122e";
 
 // Código por perfil: una tester nunca usa (ni escribe en) el código de sincronización de Mario.
 const CODE_KEY = perfil().owner ? 'nous:sync-code' : `nous:sync-code:${perfilId()}`;

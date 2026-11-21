@@ -17,7 +17,7 @@ const MAX_QUESTIONS = 120;
 
 const ADMIN_CODES = new Set(['he', '12']);
 const VALID_R2 = new Set([
-  'jesus', 'alina', 'angel_g', 'diana', 'alejandro', 'luis', 'angel_c',
+  'jesus', 'alina', 'angel_g', 'diana', 'alejandro', 'luis',
   'isahy', 'ulises', 'delia', 'dulce', 'tiffany', 'marco', 'r2_mario',
 ]);
 

@@ -7,18 +7,18 @@
    película, viñeta y fallas de señal) + tipografía tipo créditos de cine.
    ========================================================================== */
 
-import { getEngine, isPortalAudioMuted, setPortalAudioMuted, duck, addDuckTarget, removeDuckTarget } from './portal-audio.js?v=20261122d';
-import { getSfx, warmSfx } from './sfx-bank.js?v=20261122d';
-import { getBootMetrics } from './boot.js?v=20261122d';
-import { speak, stopVoice, prefetchVoice, voiceWelcome, getVoiceLevel, INTRO_LINES } from './voice.js?v=20261122d';
+import { getEngine, isPortalAudioMuted, setPortalAudioMuted, duck, addDuckTarget, removeDuckTarget } from './portal-audio.js?v=20261122e';
+import { getSfx, warmSfx } from './sfx-bank.js?v=20261122e';
+import { getBootMetrics } from './boot.js?v=20261122e';
+import { speak, stopVoice, prefetchVoice, voiceWelcome, getVoiceLevel, INTRO_LINES } from './voice.js?v=20261122e';
 
 const THREE_URL = new URL('../../vendor/three/three.module.min.js', import.meta.url).href;
 const ROBOT_URL = new URL('./intro-robot.js?v=20261120a', import.meta.url).href;
-const LOGO_URL = new URL('../../assets/calot-logo.png?v=20261122d', import.meta.url).href;
+const LOGO_URL = new URL('../../assets/calot-logo.png?v=20261122e', import.meta.url).href;
 // Intro nueva del androide (pieza de Dédalo): módulos propios, assets y vendor de three con addons.
-const ANDROID_URL = new URL('./androide/intro-androide.js?v=20261122d', import.meta.url).href;
-const OJO_STAGE_URL = new URL('./forge/ojo-stage.js?v=20261122d', import.meta.url).href;
-const OJO_TIMELINE_URL = new URL('./forge/ojo-timeline.js?v=20261122d', import.meta.url).href;
+const ANDROID_URL = new URL('./androide/intro-androide.js?v=20261122e', import.meta.url).href;
+const OJO_STAGE_URL = new URL('./forge/ojo-stage.js?v=20261122e', import.meta.url).href;
+const OJO_TIMELINE_URL = new URL('./forge/ojo-timeline.js?v=20261122e', import.meta.url).href;
 const ANDROID_ASSETS = new URL('../../assets/intro/', import.meta.url);
 const VENDOR_THREE = new URL('../../vendor/three/', import.meta.url);
 const ANDROID_LOAD_MS = 12000; // si el androide no carga en este tiempo, entra la intro anterior

@@ -1,6 +1,6 @@
 // R3 · peritoneo, tiroides/paratiroides/suprarrenal y mama.
 // Desarrollo de tema completo por subtema (nivel R3 Cirugía General · Sabiston 21.ª, Schwartz 11.ª, ATA, NCCN, WSES, GPC IMSS).
-import { sheet } from './hoja.js?v=20261122d';
+import { sheet } from './hoja.js?v=20261122e';
 
 export const R3B = {
   'ap-r3-peritoneo': [
