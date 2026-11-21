@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="CALOT-OS | Donde aprender medicina se vuelve tu mayor obsesión. Sistema de estudio para residentes de cirugía general.">
+  <title>CALOT-OS | Donde aprender medicina se vuelve tu mayor obsesión</title>
+  <link rel="icon" href="assets/favicon.png?v=20261121q" type="image/png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261121q">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@200;300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="vendor/lenis.css">
+  <link rel="stylesheet" href="styles/tokens.css?v=20261119e">
+  <link rel="stylesheet" href="styles/components.css">
+  <link rel="stylesheet" href="styles/sections.css?v=20261121q">
+  <link rel="stylesheet" href="styles/glass.css">
+  <link rel="stylesheet" href="styles/sections2.css">
+  <link rel="stylesheet" href="styles/premium.css?v=20261121q">
+  <link rel="stylesheet" href="styles/adscrito.css?v=20261121q">
+  <link rel="stylesheet" href="styles/resumenes.css?v=20261119e">
+  <link rel="stylesheet" href="styles/ranking.css?v=20261121q">
+  <link rel="stylesheet" href="styles/eval.css?v=20261121q">
+</head>
+<body data-section="portada" class="is-landing">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="ig-metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--svg-metal-1)"/><stop offset=".55" style="stop-color:var(--svg-metal-2)"/><stop offset="1" style="stop-color:var(--svg-metal-3)"/></linearGradient>
+      <linearGradient id="ig-gloss" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" style="stop-color:var(--svg-gloss-1)"/><stop offset=".22" style="stop-color:var(--svg-gloss-2)"/><stop offset=".7" style="stop-color:var(--svg-gloss-3)"/><stop offset="1" style="stop-color:var(--svg-gloss-4)"/></linearGradient>
+      <linearGradient id="ig-red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--svg-red-1)"/><stop offset=".5" style="stop-color:var(--svg-red-2)"/><stop offset="1" style="stop-color:var(--svg-red-3)"/></linearGradient>
+    </defs>
+  </svg>
+  <div class="ambient" aria-hidden="true">
+    <svg class="amb-ribbons" viewBox="0 0 1440 900" preserveAspectRatio="none">
+      <path class="ar ar1" d="M-200 260 C 200 80, 600 420, 1000 220 S 1500 60, 1700 200"/>
+      <path class="ar ar2" d="M-200 760 C 300 600, 700 960, 1100 700 S 1500 600, 1700 720"/>
+    </svg>
+  </div>
+  <canvas id="neural-bg" class="neural-bg" aria-hidden="true"></canvas>
+  <div class="noise" aria-hidden="true"></div>
+
+  <header class="hud" aria-label="Navegación principal"></header>
+  <nav class="tabbar" aria-label="Secciones"></nav>
+  <div class="fab-menu glass" id="fab-menu" role="menu"></div>
+  <div class="more-sheet glass" id="more-sheet"></div>
+
+  <main id="view"></main>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+  <div class="toast glass" id="toast" role="status" aria-live="polite"></div>
+
+  <noscript><p style="padding:40px;text-align:center">CALOT-OS necesita JavaScript.</p></noscript>
+
+  <!-- GSAP 3.12.5 + ScrollTrigger and Lenis 1.1.13, vendored so the app works offline -->
+  <script src="vendor/gsap.min.js"></script>
+  <script src="vendor/ScrollTrigger.min.js"></script>
+  <script src="vendor/lenis.min.js"></script>
+  <script type="module" src="js/main.js?v=20261121q"></script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>Cuando el asa gira · Cirugía General R2</title><style>
+:root{--bg:#050505;--stone:#0a0c10;--gold:#c9a45a;--light:#e8d5a3;--cyan:#3ee0ff;--ink:#e5e4df;--muted:#9ba4ab;--line:#343127;--red:#ef7169;--green:#8cd8b5;--serif:'Cinzel',Georgia,serif;--sans:'Source Sans 3',Arial,sans-serif;--mono:'JetBrains Mono',monospace}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans)}body:before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 85% 0,#18303920,transparent 50%);z-index:-1}a{color:var(--cyan);text-decoration:none}button,input,select,textarea{font:inherit}button,a,input,select{touch-action:manipulation}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}button:disabled{opacity:.35;cursor:not-allowed}.wrap{max-width:1440px;margin:auto;padding:0 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 0 18px;border-bottom:1px solid var(--line);font:10px var(--mono);letter-spacing:.14em}.top .brand{font:600 18px var(--serif);letter-spacing:.22em;color:var(--light)}.top span{color:var(--muted)}.eyebrow{text-transform:uppercase;color:var(--gold);font:10px/1.5 var(--mono);letter-spacing:.16em}.intro{display:grid;grid-template-columns:1fr 350px;gap:30px;align-items:end;padding:26px 0}h1{font:500 clamp(27px,3.25vw,46px)/1.16 var(--serif);letter-spacing:-.03em;margin:10px 0}h2{font:500 25px/1.3 var(--serif);color:var(--light);margin:10px 0 18px}h3{font:500 18px/1.4 var(--serif);color:var(--light)}p{margin:9px 0}.dek{color:var(--muted);font-size:14px;line-height:1.7;margin:0}.stage-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;border:1px solid #6a5836;background:var(--stone);position:relative;box-shadow:0 0 45px #000,inset 0 0 0 5px #050505}.stage-grid:before,.stage-grid:after{content:'𓂀 𓆣 𓏏 𓊖 𓋹';position:absolute;top:0;bottom:0;z-index:4;writing-mode:vertical-rl;font:16px/1.6 Georgia;color:#8e713a66;pointer-events:none;padding:12px 2px;background:linear-gradient(90deg,#101217,#040505);border:1px solid #7a63383d;width:23px;letter-spacing:20px}.stage-grid:before{left:0}.stage-grid:after{right:0}.view{min-width:0;position:relative;background:radial-gradient(ellipse at 50% 50%,#112027 0,#090d12 45%,#030404 80%);margin-left:23px;overflow:hidden}.three{height:520px;position:relative;width:100%}.three canvas{width:100%;height:100%;display:block;touch-action:none}.view-top,.view-bottom{position:absolute;left:22px;right:22px;z-index:3;font:9px var(--mono);letter-spacing:.08em;color:var(--muted);pointer-events:none}.view-top{top:17px}.view-bottom{bottom:17px;display:flex;justify-content:space-between;gap:15px}.awake{color:var(--cyan);text-shadow:0 0 10px #3ee0ff99}.labels{position:absolute;inset:0;pointer-events:none}.label3{position:absolute;font:9px var(--mono);background:#05080cdd;border-left:1px solid currentColor;padding:4px 6px;white-space:nowrap;transform:translate(-50%,-50%);color:var(--cyan)}.controls{padding:24px 40px 20px 22px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:17px;background:linear-gradient(135deg,#0d1014,#070808)}label{display:block;color:#ced3d5;font-size:12px;margin-bottom:8px}select{width:100%;background:#10151b;color:var(--ink);border:1px solid #4c4738;padding:9px;font-size:12px;border-radius:2px}input[type=range]{width:100%;accent-color:var(--cyan);cursor:pointer}output{font:10px var(--mono);color:var(--cyan)}.status{border-top:1px solid var(--line);padding-top:14px;color:var(--light);font-size:13px;line-height:1.7;margin-top:auto;min-height:90px}.note{color:var(--muted);font-size:11px}.reading{display:grid;grid-template-columns:1fr 1fr;gap:38px;margin:32px 0}.reading article{border-top:1px solid var(--line);padding-top:18px}.reading p{color:#bac2c6;font-size:15px}.key{border-left:2px solid var(--gold);padding-left:23px}.quiz,.panel{border:1px solid var(--line);padding:26px;background:linear-gradient(145deg,#0b0e12,#060707);margin:24px 0}.quiz-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}button,.btn{background:#0d1218;color:var(--ink);border:1px solid #39434a;padding:12px 15px;text-align:left;border-radius:2px;transition:border-color .2s,background .2s}button:hover,.btn:hover{border-color:var(--gold);background:#15191d}.correct{border-color:var(--green)!important;color:var(--green)!important}.wrong{border-color:var(--red)!important;color:var(--red)!important}.feedback{min-height:28px;font-size:14px;color:var(--cyan)}.sources{border-top:1px solid var(--line);padding:24px 0;color:var(--muted);font-size:12px}.sources a{display:block;margin:5px 0}.footer{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding:24px 0 35px;gap:24px;font:10px var(--mono)}.hero{position:relative;min-height:475px;display:grid;grid-template-columns:1.2fr 1fr;align-items:center;gap:30px;overflow:hidden;border-bottom:1px solid #675334}.hero h1{font-size:clamp(42px,5.1vw,72px);max-width:700px;line-height:1.05}.hero em{font-style:normal;color:var(--light)}.hero .dek{max-width:550px}.hero-copy{z-index:3;padding:45px 0 50px}.hero-art{height:475px;position:relative;align-self:stretch;background:linear-gradient(90deg,#050505,transparent 22%,transparent 88%,#050505),url('egypt-ref.jpg') center 38%/cover;filter:saturate(.68)}.hero-art:after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,#050505,transparent 35%,#05050522)}.hero-art:before{content:'𓂀 𓊖 𓋹';position:absolute;inset:16px 12px;border:1px solid #8c713d66;z-index:1;color:#c9a45a66;font:16px Georgia;padding:10px;letter-spacing:10px}.dust{position:absolute;inset:0;pointer-events:none;z-index:2}.dust i{position:absolute;bottom:-10px;background:var(--gold);border-radius:50%;box-shadow:0 0 9px #e8c66c;animation:rise 7s linear infinite}@keyframes rise{from{transform:translateY(0);opacity:0}15%{opacity:.7}to{transform:translateY(-360px) translateX(50px);opacity:0}}.route-label{margin:27px 0 15px;display:flex;justify-content:space-between;gap:15px}.index-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.station-link{display:block;color:var(--ink);border:1px solid var(--line);padding:22px 24px;background:linear-gradient(135deg,#101318,#060707);position:relative;transition:.2s;min-height:170px}.station-link:before{content:'';position:absolute;left:0;top:20px;height:28px;width:2px;background:var(--gold)}.station-link:hover{transform:translateY(-3px);border-color:var(--gold)}.station-link .num{font:10px var(--mono);color:var(--cyan)}.station-link h3{margin:12px 0 8px}.station-link p{font-size:13px;color:var(--muted)}.resource-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.resource-grid .station-link{min-height:185px}.pill{display:inline-block;font:9px var(--mono);color:var(--cyan);border:1px solid #255463;padding:5px 8px;margin:16px 10px 0 0}.ficha-layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:25px}.ficha-nav{display:flex;flex-direction:column;gap:7px}.ficha-nav button{font-size:12px;color:var(--muted);padding:13px}.ficha-nav button.active,.tabs button.active{color:var(--cyan);border-color:var(--cyan);background:#0c2029}.comparators{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.compare{border:1px solid var(--line);padding:17px;background:#0c1015}.compare h3{font-size:16px;margin:0 0 10px}.compare p{font-size:13px;color:#adb8bf}.compare strong{color:var(--cyan);font-weight:500}.compare.active{border-color:var(--cyan)}.ficha-visual{height:230px;border:1px solid #45402e;background:radial-gradient(ellipse,#101e26,#030505);margin:15px 0}.ficha-visual svg{width:100%;height:100%}.inline-controls{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin:16px 0}.inline-controls label{margin:0}.inline-controls select{width:auto;max-width:100%}.inline-controls input{width:220px}.ficha-case{border-left:2px solid var(--gold);padding-left:20px;margin:24px 0}.answer{padding:14px;background:#0c1c22;color:var(--cyan);margin-top:14px}.tabs{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 22px}.progress{display:flex;gap:9px;margin:16px 0}.progress span{height:3px;background:#293139;flex:1}.progress span.done{background:var(--cyan);box-shadow:0 0 10px #3ee0ff55}.case-layout{display:grid;grid-template-columns:260px 1fr;gap:30px}.case-side{border-right:1px solid var(--line);padding-right:26px}.case-side h2{font-size:22px}.case-side p{color:var(--muted);font-size:14px}.case-stage{font:70px var(--serif);color:#c9a45a66;line-height:1.2}.case-main{min-width:0}.case-main .quiz{margin-top:10px}.case-main .case-story{font-size:18px;line-height:1.7;color:#cbd1d4}textarea{display:block;width:100%;min-height:150px;background:#070b0f;color:var(--ink);border:1px solid #454b50;padding:16px;margin:15px 0;resize:vertical}.tree-shell{display:grid;grid-template-columns:280px 1fr;gap:25px}.tree-path{border-left:1px solid var(--gold);padding-left:20px}.tree-path div{font-size:13px;padding:12px 0;border-bottom:1px solid var(--line);color:var(--muted)}.tree-path div:last-child{color:var(--cyan)}.tree-main{min-height:340px}.tree-choices{display:grid;gap:12px}.tree-choices button{padding:17px}.tree-why{margin:20px 0;padding:17px;border-left:2px solid var(--cyan);background:#0c171c}.tree-why p{font-size:14px}.monitor{height:340px;position:relative;background:radial-gradient(ellipse,#0d1a22,#030505);border:1px solid #5a4e34}.monitor canvas{width:100%;height:100%}.night-grid{display:grid;grid-template-columns:1fr 330px;gap:25px}.night-clock{font:36px var(--mono);color:var(--cyan);margin:14px 0}.night-actions{display:flex;gap:10px;flex-wrap:wrap}.night-actions button{font-size:12px}.timeline-tags{display:flex;justify-content:space-between;font:9px var(--mono);color:var(--muted)}.timeline-tags span{max-width:100px}.hidden,[hidden]{display:none!important}.long-note{max-width:950px;color:var(--muted)}@media(max-width:960px){.wrap{padding:0 22px}.intro{grid-template-columns:1fr}.stage-grid{grid-template-columns:minmax(0,1fr) 260px}.controls{padding-left:15px;padding-right:35px}.resource-grid{grid-template-columns:1fr 1fr}.comparators{grid-template-columns:1fr 1fr}.hero h1{font-size:48px}.night-grid{grid-template-columns:1fr}.hero-art{height:480px}}@media(max-width:700px){.wrap{padding:0 17px}.top{font-size:8px}.top span{display:none}.top .brand{font-size:15px}.intro{padding:23px 0;gap:15px}.stage-grid{grid-template-columns:1fr}.three{height:460px}.view{margin-right:23px}.controls{margin:0 23px;border-left:0;border-top:1px solid var(--line);padding:22px}.stage-grid:after{height:460px;bottom:auto}.stage-grid:before{height:460px;bottom:auto}.reading,.case-layout,.tree-shell,.ficha-layout{grid-template-columns:1fr}.reading{gap:20px}.index-grid{grid-template-columns:1fr 1fr}.hero{display:block}.hero-copy{padding:35px 0;max-width:82%}.hero-art{position:absolute;right:-70px;top:0;width:65%;height:100%;opacity:.35}.hero h1{font-size:44px}.ficha-nav{display:grid;grid-template-columns:1fr 1fr}.comparators{grid-template-columns:1fr}.quiz-options{grid-template-columns:1fr}.case-side{border-right:0;border-bottom:1px solid var(--line);padding-bottom:20px}.case-stage{font-size:40px}.tree-path{display:flex;gap:15px;overflow:auto}.tree-path div{min-width:120px}.quiz,.panel{padding:20px}.footer{font-size:9px;gap:10px}.label3{font-size:8px}.night-grid{gap:12px}.view-top{font-size:8px}}@media(max-width:420px){.index-grid,.resource-grid{grid-template-columns:1fr}.three{height:420px}.stage-grid:before,.stage-grid:after{height:420px}.hero-copy{max-width:95%}.hero h1{font-size:38px}}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Carved vector inlay: no platform-dependent hieroglyph glyphs. */
+.stage-grid:before,.stage-grid:after{content:"";background-color:#090b0e;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2223%22%20height%3D%22142%22%20viewBox%3D%220%200%2023%20142%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23ad8b48%22%20stroke-opacity%3D%22.48%22%20stroke-width%3D%22.7%22%3E%3Cpath%20d%3D%22M3%202h17v136H3zM5%2036h13M5%2070h13M5%20105h13M5%20138h13%22%2F%3E%3Cpath%20d%3D%22M6%2015q5-7%2011%200-6%205-11%200m5-3v6m-5-2%204%206%205-2M9%2029h6%22%2F%3E%3Cpath%20d%3D%22M11%2044v19m-5-12h11m-6-8c-6%200-6%208%200%208s6-8%200-8M7%2065h8%22%2F%3E%3Cpath%20d%3D%22M7%2079q5-6%209%200v12q-5%207-9%200zm4-4v22m-5-13h12m-12%206h12M8%2099h7%22%2F%3E%3Cpath%20d%3D%22M6%20116l5-7%206%207-6%2010zm0%2013h11m-8-4v4m5-4v4%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");background-repeat:repeat-y;background-position:center top;letter-spacing:0;padding:0}.hero-art:before{content:"";background:linear-gradient(90deg,#c9a45a12,transparent 5%,transparent 95%,#c9a45a12)}
+
+.tgl{display:flex;flex-wrap:wrap;gap:8px}.tgl button{padding:8px 11px;font-size:12px}button[aria-pressed=true]{border-color:#35a9c4!important;color:#fff}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:30px;align-items:start}.xray{margin:0}.xray svg{width:100%;height:auto;background:#05070a;border:1px solid var(--line);border-radius:10px}.xray figcaption{font-size:12px;color:var(--muted);margin-top:8px}
+.mg{padding-left:20px;margin:14px 0}.mg li{margin:9px 0;color:#c8ced1;font-size:14px}.mg li b{color:var(--light)}
+@media(max-width:900px){.two{grid-template-columns:1fr}}</style><link rel="stylesheet" href="nous-skin.css"></head><body><div class="wrap"><header><nav class="top"><a class="brand" href="index.html">R2 · CIRUGÍA GENERAL</a><a href="index.html">ATLAS QUIRÚRGICO</a><span>HGR 72 · SELECCIÓN CURADA</span></nav><div class="intro"><div><div class="eyebrow">ESTACIÓN 07 · R2 · Colon · vólvulo de sigmoides y de ciego</div><h1>Cuando el asa gira</h1></div><p class="dek">Un mesenterio largo sobre una base estrecha es una palanca. Gira el asa y mira cuándo se cierra y cuándo se queda sin sangre.</p></div></header><main>
+<section class="stage-grid"><div class="view"><div class="view-top">VÓLVULO · 3D ESQUEMÁTICO / NO A ESCALA</div><div class="three" id="visual" role="img" aria-label="Modelo 3D de un vólvulo de colon: mesenterio, torsión, asa cerrada y compromiso vascular"></div><div class="view-bottom"><span>ARRASTRA · ROTA · ACERCA</span><span class="awake">● MODELO ACTIVO</span></div></div>
+<aside class="controls"><div class="eyebrow">Despierta el mecanismo</div>
+<div class="control"><label for="mode">Tipo de vólvulo</label><select id="mode"><option value="sig">Sigmoides</option><option value="cec">Ciego</option></select></div>
+<div class="control"><label for="anat">Anatomía predisponente</label><select id="anat"></select></div>
+<div class="control"><label for="theta">Torsión del asa · <output id="out-theta" for="theta">0°</output></label><input id="theta" type="range" min="0" max="540" step="5" value="0"></div>
+<div class="tgl"><button id="play">▶ Animar torsión</button><button id="b-mes" aria-pressed="true">Mesenterio</button><button id="b-vas" aria-pressed="true">Vasos</button><button id="b-lab" aria-pressed="true">Etiquetas</button></div>
+<div class="status" id="status" aria-live="polite"></div><p class="note">Los grados del control son una escala didáctica: el ángulo real varía entre pacientes.</p></aside></section>
+<section class="reading"><article><div class="eyebrow">Esencial</div>
+<p>El vólvulo colónico es la torsión de un segmento del colon sobre su propio mesenterio. El sigmoides es la localización más frecuente y el ciego, la segunda. Para que el asa gire hacen falta un segmento redundante y móvil y un mesenterio largo que se inserta en una base estrecha: esa base es el eje y el asa, la palanca.</p>
+<p>Con una torsión mayor de 180° el asa se ocluye en sus dos extremos y se vuelve un asa cerrada: el gas queda atrapado, el asa se dilata y el colon proximal se distiende. Si la torsión sigue, el pedículo comprime los vasos mesentéricos: congestión, isquemia, necrosis y perforación.</p>
+<p>En el sigmoides, la radiografía muestra un asa sin haustras, en «tubo interior» o grano de café, que nace en la pelvis y sube hacia el hipocondrio derecho, con el recto sin gas. En el ciego, el asa dilatada se desplaza al epigastrio o al hipocondrio izquierdo, conserva las haustras, el delgado se dilata y el colon distal se colapsa. La TC confirma con el signo del remolino y el punto de transición.</p></article>
+<article class="key"><div class="eyebrow">Clave de examen</div>
+<p><strong>Sigmoides sin isquemia ni perforación:</strong> detorsión endoscópica (eficaz en 60–95 %), sonda de descompresión y sigmoidectomía en el mismo ingreso, porque sin cirugía recurre en 43–75 %. Si hay isquemia, perforación, peritonitis o falla de la detorsión: sigmoidectomía urgente.</p>
+<p><strong>Ciego:</strong> no se intenta la endoscopia (resuelve cerca del 14 % y arriesga perforación). El tratamiento de elección es la resección segmentaria, por lo general hemicolectomía derecha o resección ileocólica. La cecopexia queda para ciego viable en un paciente no apto para resecar. El ciego no viable está presente en 18–44 % de los casos.</p>
+<p>Mueve la torsión: a los 180° se cierra el asa; hacia los 360° aparece el compromiso vascular. Cambia a ciego y compara la imagen.</p></article></section>
+<section class="panel"><div class="eyebrow">Imagen y manejo · cambian con el modelo</div>
+<div class="two"><figure class="xray"><svg id="xray" viewBox="0 0 300 250" role="img" aria-label="Esquema de radiografía simple de abdomen"></svg><figcaption id="xcap"></figcaption></figure>
+<div><h3 id="mg-title"></h3><div class="inline-controls"><button id="c-est" aria-pressed="true">Estable, sin isquemia</button><button id="c-isq" aria-pressed="false">Isquemia, perforación o falla</button></div><ol class="mg" id="mg"></ol><p class="note" id="mg-note"></p></div></div></section>
+<section class="quiz" id="quiz"><div id="quiz-body"></div></section>
+<section class="sources"><div class="eyebrow">Fuentes y límites</div><a target="_blank" rel="noopener" href="https://journals.lww.com/dcrjournal/Fulltext/2021/09000/The_American_Society_of_Colon_and_Rectal_Surgeons.5.aspx">↗ ASCRS 2021 · guía de vólvulo colónico y pseudoobstrucción colónica aguda (Dis Colon Rectum)</a><a target="_blank" rel="noopener" href="https://link.springer.com/article/10.1186/s13017-023-00502-x">↗ WSES 2023 · consenso sobre el manejo del vólvulo de sigmoides</a><a target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/PMC13070628/">↗ Radiologic hallmarks of colonic volvulus: A narrative review (signos de grano de café, remolino y punto de transición)</a><a target="_blank" rel="noopener" href="https://radiopaedia.org/articles/sigmoid-volvulus-vs-caecal-volvulus-1">↗ Radiopaedia · vólvulo de sigmoides frente a vólvulo cecal (patrón radiológico)</a><a target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5179272/">↗ Volvulus of the Small Bowel and Colon (Clin Colon Rectal Surg): epidemiología y cecal bascule</a><p>Material educativo, esquemático y no a escala. No sustituye valoración, guías vigentes, protocolos locales ni supervisión clínica. No es una calculadora ni una recomendación individual. Las cifras provienen de las fuentes citadas; los umbrales visuales del dibujo son ilustrativos.</p></section>
+<nav class="footer"><a href="06-erge-union.html">← Anterior</a><a href="index.html">Volver al portal</a><a href="08-fuga-anastomotica.html">Siguiente →</a></nav></main></div>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js","three/addons/":"../vendor/three/addons/"}}</script>
+<script type="module">const CAT_ID="3d-volvulo",TOTAL_STEPS=5;
+
+const $=id=>document.getElementById(id);
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+window.__events=[];window.__ready=false;
+const _sent=new Set();
+function emit(event,extra){
+  const msg=Object.assign({source:'calot-atlas',v:1,id:CAT_ID,event:event},extra||{});
+  window.__events.push(msg);
+  try{ window.parent !== window && window.parent.postMessage(msg,'*'); }catch(e){}
+}
+function step(n){ if(_sent.has(n))return; _sent.add(n); emit('step',{step:n,total:TOTAL_STEPS}); const el=document.querySelector('.progress span:nth-child('+n+')'); if(el)el.classList.add('done'); }
+let _done=false;
+function complete(score){ if(_done)return; _done=true; emit('complete',{step:TOTAL_STEPS,total:TOTAL_STEPS,score:Math.round(score*100)/100}); }
+emit('open');
+/* Quiz: una pregunta a la vez; acierto a la primera cuenta para el puntaje */
+function runQuiz(QUIZ,onDone){
+  let i=0,first=0,tried=false;
+  const host=$('quiz-body');
+  function render(){
+    const q=QUIZ[i];tried=false;
+    host.innerHTML='<div class="eyebrow">Pregunta '+(i+1)+' de '+QUIZ.length+'</div><h2>'+q.q+'</h2><div class="quiz-options" id="qopts"></div><p class="feedback" id="qfb" aria-live="polite">Elige una respuesta. Puedes intentarlo de nuevo.</p><button id="qnext" disabled>'+(i<QUIZ.length-1?'Siguiente pregunta →':'Terminar')+'</button>';
+    const box=$('qopts');
+    q.options.forEach((o,k)=>{const b=document.createElement('button');b.textContent=String.fromCharCode(65+k)+'. '+o;b.addEventListener('click',()=>{
+      const ok=k===q.answer;
+      box.querySelectorAll('button').forEach(e=>e.classList.remove('correct','wrong'));
+      b.classList.add(ok?'correct':'wrong');
+      if(ok&&!tried)first++;
+      tried=true;
+      $('qfb').textContent=(ok?'Correcto. ':'No todavía. ')+q.explain;
+      if(ok){$('qnext').disabled=false;}
+      window.__quiz={i,ok,first};
+    });box.appendChild(b);});
+    $('qnext').addEventListener('click',()=>{ if(i<QUIZ.length-1){i++;render();} else { host.innerHTML='<div class="eyebrow">Reactivos completos</div><h2>Aciertos a la primera: '+first+' / '+QUIZ.length+'</h2><p class="feedback">Puedes volver a explorar el modelo; los reactivos quedan resueltos.</p>'; window.__quizDone=first/QUIZ.length; onDone(first/QUIZ.length);} });
+  }
+  render();
+}
+
+
+const QUIZ=[
+{q:'Hombre de 80 años de un asilo, con estreñimiento crónico y distensión masiva. La radiografía muestra un asa en «tubo interior» que sube desde la pelvis y no hay gas en el recto. La rectosigmoidoscopia no muestra isquemia de la mucosa y no hay peritonitis. ¿Cuál es la secuencia más adecuada?',
+ options:['Hemicolectomía derecha urgente','Detorsión endoscópica con sonda de descompresión y sigmoidectomía en el mismo ingreso','Detorsión endoscópica y alta con laxantes','Cecopexia'],answer:1,
+ explain:'Es un vólvulo de sigmoides sin datos de gravedad: la detorsión funciona en 60–95 %, pero sin cirugía recurre en 43–75 %. Por eso se programa la sigmoidectomía durante el mismo ingreso (ASCRS 2021).'},
+{q:'TC de un adulto con dolor y distensión: ciego dilatado en el hipocondrio izquierdo con signo del remolino. Está estable y no hay peritonitis. ¿Qué haces?',
+ options:['Colonoscopia descompresiva','Enema con bario','Resección segmentaria: hemicolectomía derecha o resección ileocólica','Cecostomía'],answer:2,
+ explain:'En el ciego la endoscopia resuelve cerca del 14 % y arriesga perforación. El tratamiento preferido es la resección segmentaria; la cecopexia o la cecostomía quedan para casos muy selectos (ASCRS 2021).'},
+{q:'¿Qué hallazgo en un vólvulo de sigmoides contraindica la detorsión endoscópica y obliga a sigmoidectomía urgente?',
+ options:['Isquemia o gangrena de la mucosa, perforación o peritonitis','Edad mayor de 70 años','Que sea el primer episodio','Que el recto no tenga gas'],answer:0,
+ explain:'La endoscopia es la primera línea solo si no hay isquemia ni perforación. Con gangrena, perforación, peritonitis, choque o falla de la detorsión se opera de urgencia.'},
+{q:'¿Qué dato de imagen orienta a vólvulo de ciego y no de sigmoides?',
+ options:['Asa sin haustras que nace en la pelvis','Ápex del asa dirigido al hipocondrio derecho','Recto sin gas','Asa dilatada con haustras en el hipocondrio izquierdo, delgado dilatado y colon distal colapsado'],answer:3,
+ explain:'El sigmoides forma un asa ahaustral que nace en la pelvis y sube hacia el hipocondrio derecho. El ciego se desplaza al epigastrio o al hipocondrio izquierdo, conserva las haustras y el delgado se distiende.'}
+];
+runQuiz(QUIZ,s=>complete(s));
+
+const state={mode:'sig',anat:'largo',theta:0,mes:true,vas:true,lab:true,cond:'est'};
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),smooth=u=>{u=clamp(u,0,1);return u*u*(3-2*u)};
+const ANAT={sig:[['largo','Mesosigmoides largo, base estrecha'],['corto','Mesosigmoides corto, base ancha']],cec:[['largo','Ciego móvil, sin fijación'],['corto','Ciego fijado al retroperitoneo']]};
+function fillAnat(){const s=$('anat');s.innerHTML=ANAT[state.mode].map(a=>'<option value="'+a[0]+'">'+a[1]+'</option>').join('');s.value=state.anat;}
+fillAnat();
+
+function dil(){return clamp((state.theta-180)/180,0,1);}
+function vc(){return clamp((state.theta-360)/180,0,1);}
+
+const STATUS={
+ sig:{largo:['Sin torsión: el mesosigmoides largo deja colgar un asa redundante desde una base estrecha en la fosa iliaca izquierda. Esa palanca es la predisposición.','Torsión parcial (hasta 180°): puede ser fisiológica y resolverse sola. El asa todavía no está cerrada.','Asa cerrada: la torsión ocluye ambas extremidades en el pedículo. El gas queda atrapado, el asa se dilata y el colon proximal se distiende. El recto queda sin gas.','Compromiso vascular: el pedículo comprime venas y arterias. Congestión, isquemia, necrosis y perforación. Aquí cambia el manejo: cirugía urgente.'],
+  corto:['Mesosigmoides corto de base ancha: el asa no tiene brazo de palanca y gira mucho menos. Es la anatomía que protege.']},
+ cec:{largo:['Ciego móvil, sin fijación retroperitoneal: puede girar sobre su mesenterio ileocólico.','Torsión parcial del ciego y del íleon terminal sobre el eje ileocólico. Aún sin asa cerrada.','Asa cerrada: ciego y colon ascendente proximal dilatados, el delgado se distiende y el colon distal se colapsa. El ciego migra hacia el epigastrio y el hipocondrio izquierdo.','Compromiso vascular del ciego: congestión e isquemia. El ciego no viable se encuentra en 18–44 % de los casos; no se intenta la endoscopia.'],
+  corto:['Ciego fijado al retroperitoneo: no hay eje móvil y el ciego casi no gira. La fijación completa es protectora.']}};
+function statusTxt(){const a=STATUS[state.mode][state.anat];if(a.length===1)return a[0];const th=state.theta;return th===0?a[0]:th<=180?a[1]:th<360?a[2]:a[3];}
+
+/* ---------- radiografía esquemática ---------- */
+function xray(){
+  const d=dil(),th=state.theta;let s='';
+  const bg='<rect width="300" height="250" fill="#05070a"/><path d="M40 10c-20 40-22 190 0 235M260 10c20 40 22 190 0 235" stroke="#202a30" fill="none" stroke-width="2"/>';
+  if(state.mode==='sig'){
+    const rx=34+46*d,ry=48+62*d;
+    if(th<=180||state.anat==='corto'){s=bg+'<text x="150" y="125" fill="#8b949a" font-size="9" text-anchor="middle">Sin asa dilatada: la radiografía puede ser inespecífica</text>';}
+    else{
+      s=bg+'<g transform="rotate(14 150 135)"><ellipse cx="150" cy="130" rx="'+rx+'" ry="'+ry+'" fill="#0e1216" stroke="#d3dadd" stroke-width="3"/><path d="M150 '+(130+ry)+'V'+(130-ry*.55)+'" stroke="#d3dadd" stroke-width="4"/></g>'+
+      '<text x="150" y="26" fill="#9bd" font-size="9" text-anchor="middle">Grano de café / tubo interior: sin haustras</text><text x="150" y="238" fill="#8b949a" font-size="8" text-anchor="middle">nace en la pelvis · ápex hacia el hipocondrio derecho · recto sin gas</text>';
+    }
+    $('xcap').textContent='Sigmoides: asa ahaustral dilatada, en «tubo interior» o grano de café. La hendidura central son las paredes yuxtapuestas.';
+  }else{
+    const rx=28+34*d,ry=38+40*d;
+    if(th<=180||state.anat==='corto'){s=bg+'<text x="150" y="125" fill="#8b949a" font-size="9" text-anchor="middle">Sin ciego desplazado: la radiografía puede ser inespecífica</text>';}
+    else{
+      let h='';for(let k=0;k<5;k++){const y=130-ry+12+k*(ry*2-24)/4;h+='<path d="M'+(215-rx*.9)+' '+y+'h'+(rx*.55)+'" stroke="#9aa5ab" stroke-width="1.5"/>';}
+      let sb='';for(let k=0;k<4;k++){sb+='<path d="M70 '+(70+k*34)+'q40 -18 80 0" fill="none" stroke="#d3dadd" stroke-width="2.4"/><path d="M82 '+(70+k*34)+'v-5m14 6v-6m14 6v-6m14 5v-5m14 3v-4" stroke="#6f7b82" stroke-width="1.3"/>';}
+      s=bg+sb+'<g transform="rotate(18 215 130)"><ellipse cx="215" cy="130" rx="'+rx+'" ry="'+ry+'" fill="#0e1216" stroke="#d3dadd" stroke-width="3"/>'+h+'</g>'+
+      '<text x="150" y="26" fill="#9bd" font-size="9" text-anchor="middle">Ciego dilatado con haustras · hipocondrio izq.</text><text x="150" y="238" fill="#8b949a" font-size="8" text-anchor="middle">delgado dilatado · colon distal colapsado · nivel hidroaéreo único</text>';
+    }
+    $('xcap').textContent='Ciego: ciego dilatado y desplazado al epigastrio o hipocondrio izquierdo, haustras conservadas, delgado dilatado y colon distal sin gas.';
+  }
+  $('xray').innerHTML=s;
+}
+
+/* ---------- manejo ---------- */
+const MG={
+ sig:{est:{t:'Sigmoides estable, sin isquemia ni perforación',steps:['<b>Rectosigmoidoscopia</b> (rígida o flexible): confirma, valora la mucosa y detorsiona. Eficaz en 60–95 %.','<b>Sonda de descompresión</b> tras la detorsión, que además facilita la preparación mecánica.','<b>Sigmoidectomía durante el mismo ingreso</b>: sin cirugía recurre en 43–75 %, y el vólvulo recurrente operado de urgencia tiene mayor mortalidad.'],n:'ASCRS 2021, recomendaciones 3 y 5 (1C).'},
+  isq:{t:'Sigmoides con isquemia, perforación, peritonitis o falla de detorsión',steps:['<b>No detorsionar por endoscopia</b> si hay signos de isquemia o perforación.','<b>Sigmoidectomía urgente</b>; la detorsión manual intraoperatoria ayuda a dividir el mesenterio.','Anastomosis primaria, colostomía terminal o anastomosis derivada: se individualiza según estado clínico, salud del colon restante y comorbilidad.'],n:'ASCRS 2021, recomendación 4 (1C).'}},
+ cec:{est:{t:'Ciego viable y paciente estable',steps:['<b>No se recomienda la reducción endoscópica</b>: éxito cercano al 14 % y riesgo de perforación; retrasa la cirugía.','<b>Resección segmentaria</b> (hemicolectomía derecha o resección ileocólica) con anastomosis cuando es apropiado: es el tratamiento preferido.','<b>Cecopexia</b> o detorsión sola: solo si el intestino es viable y el paciente no es apto para resecar (recurrencia histórica cercana al 13 %).'],n:'ASCRS 2021, recomendaciones 8–10.'},
+  isq:{t:'Ciego no viable, perforado o paciente de alto riesgo',steps:['<b>Resección del segmento no viable</b>: no se destuerce un ciego gangrenoso antes de resecar.','Considera <b>resección con estoma terminal</b> en alto riesgo o intestino no viable, en lugar de anastomosis primaria.','El ciego no viable o gangrenoso aparece en 18–44 % de los casos y eleva la mortalidad.'],n:'ASCRS 2021, recomendaciones 9–10 y texto.'}}};
+function mgmt(){const m=MG[state.mode][state.cond];$('mg-title').textContent=m.t;$('mg').innerHTML=m.steps.map(s=>'<li>'+s+'</li>').join('');$('mg-note').textContent=m.n;$('c-est').setAttribute('aria-pressed',state.cond==='est');$('c-isq').setAttribute('aria-pressed',state.cond==='isq');}
+
+function refreshUI(){
+  $('out-theta').textContent=state.theta+'°';$('status').textContent=statusTxt();xray();mgmt();
+  const th=state.theta;if(th>180&&state.anat==='largo')step(2);if(th>=360&&state.anat==='largo')step(3);
+}
+$('mode').addEventListener('change',e=>{state.mode=e.target.value;state.anat='largo';fillAnat();if(state.mode==='cec')step(4);state.cond='est';sync();});
+$('anat').addEventListener('change',e=>{state.anat=e.target.value;step(1);sync();});
+$('theta').addEventListener('input',e=>{state.theta=+e.target.value;sync();});
+const tg=(id,k)=>$(id).addEventListener('click',()=>{state[k]=!state[k];$(id).setAttribute('aria-pressed',state[k]);sync();});
+tg('b-mes','mes');tg('b-vas','vas');tg('b-lab','lab');
+$('c-est').addEventListener('click',()=>{state.cond='est';step(5);refreshUI();});
+$('c-isq').addEventListener('click',()=>{state.cond='isq';step(5);refreshUI();});
+let anim=null;
+$('play').addEventListener('click',()=>{
+  if(reduced){state.theta=360;$('theta').value=360;sync();return;}
+  if(anim){cancelAnimationFrame(anim);anim=null;$('play').textContent='▶ Animar torsión';return;}
+  if(state.theta>=540){state.theta=0;}
+  $('play').textContent='❚❚ Pausar';let last=performance.now();
+  const tick=t=>{const dt=(t-last)/1000;last=t;state.theta=Math.min(540,Math.round(state.theta+dt*80));$('theta').value=state.theta;sync();if(state.theta>=540){anim=null;$('play').textContent='▶ Animar torsión';}else anim=requestAnimationFrame(tick);};
+  anim=requestAnimationFrame(tick);
+});
+let rebuild=()=>{};
+function sync(){refreshUI();rebuild();}
+refreshUI();
+
+/* ---------- 3D ---------- */
+let T,OrbitControls,RoomEnvironment;
+try{
+  T=await import('three');({OrbitControls}=await import('three/addons/controls/OrbitControls.js'));({RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js'));
+  spatial();
+}catch(e){$('visual').innerHTML='<div class="panel">No se pudo cargar el modelo 3D (requiere WebGL). El texto, la imagen y los reactivos siguen funcionando.</div>';window.__loadFailure=String(e);}
+function spatial(){
+const host=$('visual'),scene=new T.Scene(),camera=new T.PerspectiveCamera(37,host.clientWidth/host.clientHeight,.1,100);
+camera.position.set(0,.4,14.5);
+const renderer=new T.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(host.clientWidth,host.clientHeight);renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;host.appendChild(renderer.domElement);
+const pm=new T.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),.04).texture;
+const key=new T.DirectionalLight(0xffe5ba,3.2);key.position.set(-4,6,8);scene.add(key);
+const rim=new T.PointLight(0x3ee0ff,60);rim.position.set(5,1,-3);scene.add(rim);scene.add(new T.AmbientLight(0xaac5dc,.7));
+const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=7;orbit.maxDistance=24;orbit.target.set(0,0,0);orbit.update();
+const dyn=new T.Group();scene.add(dyn);
+const labelHost=document.createElement('div');labelHost.className='labels';host.appendChild(labelHost);
+let tags=[];
+const HEALTHY=new T.Color(0xc69a82),CONG=new T.Color(0x7b3f78),NECR=new T.Color(0x2d2a31),PALE=new T.Color(0xb9b0a6);
+function bowelColor(v){const c=HEALTHY.clone();if(v<=0)return c;if(v<.5)return c.lerp(CONG,v*2);return CONG.clone().lerp(NECR,(v-.5)*2);}
+function mat(opts){return new T.MeshPhysicalMaterial(Object.assign({roughness:.42,metalness:.05,clearcoat:.5,side:T.DoubleSide},opts));}
+function add(geo,m){const o=new T.Mesh(geo,m);dyn.add(o);return o;}
+function tubeGeo(pts,rf,cf,seg=170,rad=14){
+  const curve=new T.CatmullRomCurve3(pts);const fr=curve.computeFrenetFrames(seg,false);
+  const pos=[],nor=[],col=[],idx=[];
+  for(let i=0;i<=seg;i++){const t=i/seg,p=curve.getPointAt(t),N=fr.normals[i],B=fr.binormals[i],r=rf(t),c=cf(t);
+    for(let j=0;j<=rad;j++){const a=j/rad*Math.PI*2,cx=Math.cos(a),sy=Math.sin(a);const nx=N.x*cx+B.x*sy,ny=N.y*cx+B.y*sy,nz=N.z*cx+B.z*sy;pos.push(p.x+r*nx,p.y+r*ny,p.z+r*nz);nor.push(nx,ny,nz);col.push(c.r,c.g,c.b);}}
+  for(let i=0;i<seg;i++)for(let j=0;j<rad;j++){const a=i*(rad+1)+j,b=(i+1)*(rad+1)+j;idx.push(a,b,a+1,b,b+1,a+1);}
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('normal',new T.Float32BufferAttribute(nor,3));g.setAttribute('color',new T.Float32BufferAttribute(col,3));g.setIndex(idx);return g;}
+const V=(x,y,z=0)=>new T.Vector3(x,y,z);
+function tag(text,p,color='#3ee0ff'){const el=document.createElement('span');el.className='label3';el.textContent=text;el.style.color=color;labelHost.appendChild(el);tags.push({el,p:p.clone()});}
+function clearDyn(){while(dyn.children.length){const o=dyn.children.pop();o.geometry&&o.geometry.dispose();o.material&&o.material.dispose();}tags=[];labelHost.innerHTML='';}
+
+function params(){
+  const th=state.theta,lar=state.anat==='largo';
+  if(state.mode==='sig')return {H:lar?4.5:1.7,W:lar?1.7:1.5,b:lar?.26:1.1,lean:lar?-.7:0,eff:lar?1:.3,root:V(0,-2.7,.3)};
+  const m=lar?smooth(th/420):0;
+  return {H:1.25+3.3*m,W:.9+.5*m,b:.28,lean:5.1*m,eff:lar?1:.3,root:V(-3.3,-2.3,.3)};
+}
+function twistAt(p,P){const u=clamp(p.y/(P.H*1.04),0,1),a=state.theta*P.eff*Math.PI/180*smooth(u),c=Math.cos(a),s=Math.sin(a);return V(p.x*c+p.z*s,p.y,-p.x*s+p.z*c);}
+function place(p,P,yref,sc){const q=twistAt(p,P),u=clamp(yref/(P.H*1.04),0,1);q.x+=P.lean*u*u*sc;return q.add(P.root);}
+function loopRaw(P,n=170){
+  const U=[0,.38,.92,1.04,.92,.38,0],X=[-P.b,-P.W,-P.W*.55,0,P.W*.55,P.W,P.b];
+  const pts=U.map((u,i)=>V(X[i],P.H*u));
+  const c=new T.CatmullRomCurve3(pts);const out=[];for(let i=0;i<=n;i++)out.push(c.getPointAt(i/n));return out;}
+
+rebuild=function(){
+  clearDyn();const P=params(),d=dil(),v=vc(),sig=state.mode==='sig',th=state.theta;
+  const raw=loopRaw(P),tw=raw.map(p=>place(p,P,p.y,1));
+  /* colon de referencia */
+  const fr=sig?[V(-3.3,-2.1),V(-3.35,-.5),V(-3.3,1.8),V(-2.7,2.6),V(-1,2.35),V(1,2.35),V(2.7,2.6),V(3.3,1.8),V(3.35,-.5),V(3.2,-1.8),V(2.2,-2.6),V(P.root.x+P.b+.1,P.root.y,0)]
+              :[V(P.root.x-P.b,P.root.y),V(-3.45,-.5),V(-3.3,1.8),V(-2.7,2.6),V(-1,2.35),V(1,2.35),V(2.7,2.6),V(3.3,1.8),V(3.35,-.5),V(3.2,-1.8),V(2.2,-2.6),V(.5,-3.2),V(0,-3.75)];
+  const rf=sig?.27+.2*d:.12;
+  add(tubeGeo(fr,t=>rf*(1+.08*Math.cos(t*60)),()=>PALE.clone().lerp(HEALTHY,.5),150),mat({vertexColors:true,transparent:true,opacity:.55,depthWrite:false}));
+  if(sig){add(tubeGeo([V(P.root.x-P.b,P.root.y),V(-.1,P.root.y-.7),V(0,-3.75)],()=>.2,()=>PALE.clone().lerp(HEALTHY,.5),30),mat({vertexColors:true,transparent:true,opacity:.55,depthWrite:false}));}
+  /* delgado en el vólvulo de ciego */
+  if(!sig){const sbR=.15+.17*d;const sb=[V(-.3,-.8),V(1.1,-.3),V(1.7,-1.4),V(.4,-2),V(-1,-1.6),V(-1.9,-.8),V(-2.2,-2),V(P.root.x+P.b+.5,P.root.y-.1),V(P.root.x+P.b,P.root.y)];
+    add(tubeGeo(sb,t=>sbR*(1+.06*Math.cos(t*50)),()=>HEALTHY.clone().lerp(PALE,.2),130),mat({vertexColors:true,transparent:true,opacity:.9}));}
+  /* asa volvulada */
+  const rLimb=sig?.30:.22,rApex=sig?.30:.5;
+  const baseR=t=>{ if(sig)return .3; const bump=Math.exp(-Math.pow((t-.5)/.17,2));const limb=t<.5?.17:.25;return limb+(.55-limb)*bump;};
+  const radf=t=>{if(sig)return .3*(1+1.1*d)*(1+.07*Math.cos(t*44));const bump=Math.exp(-Math.pow((t-.5)/.11,2));const limb=t<.5?.17:.24;return (limb+((.5+.45*d)-limb)*bump)*(1+.06*Math.cos(t*30));};
+  const loopCol=t=>{const edge=Math.min(1,Math.abs(t-.5)*2); const local=clamp(v*(1.15-0.5*edge)+(v>0?0:0),0,1);return bowelColor(local);};
+  add(tubeGeo(tw,radf,loopCol,200,16),mat({vertexColors:true}));
+  /* mesenterio */
+  const NT=48,NS=7,pos=[],idx=[];
+  const R=V(0,-.1,0);
+  for(let i=0;i<=NT;i++){const p=raw[Math.round(i/NT*(raw.length-1))];for(let j=0;j<=NS;j++){const s=j/NS;const q=place(R.clone().lerp(p,s),P,p.y,s);pos.push(q.x,q.y,q.z);}}
+  for(let i=0;i<NT;i++)for(let j=0;j<NS;j++){const a=i*(NS+1)+j,b=(i+1)*(NS+1)+j;idx.push(a,b,a+1,b,b+1,a+1);}
+  const mg=new T.BufferGeometry();mg.setAttribute('position',new T.Float32BufferAttribute(pos,3));mg.setIndex(idx);mg.computeVertexNormals();
+  if(state.mes){const mm=add(mg,mat({color:v>0?0xb88a70:0xd9c27a,transparent:true,opacity:.3,depthWrite:false,roughness:.8,clearcoat:0}));}
+  /* vasos */
+  if(state.vas){
+    const aCol=new T.Color(0xe26859).lerp(PALE,v*.8),vCol=new T.Color(0x438eae).lerp(CONG,clamp(d*.9+v*.1,0,1));
+    for(let k=0;k<6;k++){const t=(k+.6)/6.4,p=raw[Math.round(t*(raw.length-1))];
+      for(const [off,col,rr] of [[.05,aCol,.028],[-.05,vCol,.04*(1+.8*d)]]){
+        const pts=[];for(let j=0;j<=10;j++){const s=j/10*.93;const q=R.clone().lerp(p,s);q.z+=off;pts.push(place(q,P,p.y,j/10*.93));}
+        add(new T.TubeGeometry(new T.CatmullRomCurve3(pts),24,rr,8,false),mat({color:col}));}}
+    const tr=[V(0,-.1,.05),V(0,-.6,.05),V(.1,-1.2,.05)].map(q=>place(q,P,0,0));const tr2=tr.map(q=>q.clone().add(V(.0,0,-.1)));
+    add(new T.TubeGeometry(new T.CatmullRomCurve3(tr),12,.06,8,false),mat({color:aCol}));add(new T.TubeGeometry(new T.CatmullRomCurve3(tr2),12,.08*(1+.8*d),8,false),mat({color:vCol}));
+  }
+  /* etiquetas */
+  if(state.lab){
+    const at=t=>tw[Math.round(t*(tw.length-1))];
+    tag(sig?'Pedículo: base estrecha':'Pedículo ileocólico',P.root.clone().add(V(sig?.95:1.15,.15,0)),'#e8d5a3');
+    if(state.mes)tag(sig?'Mesosigmoides':'Mesenterio ileocólico',place(R.clone().lerp(raw[Math.round(.25*raw.length)],.6),P,raw[Math.round(.25*raw.length)].y,.6).add(V(sig?-.2:-.9,0,0)),'#d9c27a');
+    tag(th>180?'Asa cerrada':(sig?'Asa sigmoidea redundante':'Ciego móvil'),at(.5).clone().add(V(0,P.H*.0+.55+ (th>180?(sig?.5:.9):0),0)),'#3ee0ff');
+    if(sig){tag(d>.3?'Colon proximal dilatado':'Colon proximal',V(3.1,.3),'#9bd');tag(th>180?'Recto sin gas':'Recto',V(.9,-3.5),'#9bd');}
+    else{tag('Íleon terminal',V(P.root.x+1.4,P.root.y-.6),'#e26859');tag(d>.3?'Delgado dilatado':'Delgado',V(.4,-1.0),'#9bd');tag('Colon distal colapsado',V(2.3,2.9),'#9bd');if(th>=180&&state.anat==='largo')tag('Ciego desplazado al hipocondrio izq.',V(1.5,3.6),'#e8d5a3');}
+    if(v>0)tag(v<.5?'Congestión venosa':'Isquemia / necrosis',at(.38).clone().add(V(-1.2,0,0)),'#ef7169');
+  }
+  window.__modelObjects=dyn.children.length;
+};
+rebuild();
+function frame(){requestAnimationFrame(frame);orbit.update();renderer.render(scene,camera);for(const t of tags){const p=t.p.clone().project(camera);t.el.style.left=(p.x*.5+.5)*host.clientWidth+'px';t.el.style.top=(-p.y*.5+.5)*host.clientHeight+'px';t.el.style.display=p.z>1?'none':'';}}
+requestAnimationFrame(frame);
+new ResizeObserver(()=>{camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight);}).observe(host);
+window.__ready=true;window.__tech='Three.js r160 · anatomía procedural';
+}
+
+</script><script src="nous-skin.js"></script></body></html>

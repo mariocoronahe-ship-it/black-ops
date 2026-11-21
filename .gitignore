@@ -1,0 +1,9 @@
+.vercel
+.env
+.env.local
+.env.*.local
+.DS_Store
+.claude/
+.DS_Store
+Icon?
+Icon
