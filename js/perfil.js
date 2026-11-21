@@ -99,3 +99,15 @@ export function markBody() {
   document.body.dataset.owner = isOwner() ? '1' : '0';
   document.body.dataset.rol = isAdscrito() ? 'adscrito' : 'residente';
 }
+
+/** «Dra. Diana» / «Dr. Luis»: usa el título correcto del residente (como en las tarjetas). */
+export function doctorTitle(rawName) {
+  const raw = String(rawName || '').trim();
+  if (/^dra?\.\s/i.test(raw)) return raw;
+  const low = raw.toLowerCase();
+  const match = R2_RESIDENTS.find((r) => r.short.toLowerCase() === low || r.name.toLowerCase().replace(/^dra?\.\s*/, '') === low);
+  if (match) return match.name;
+  const me = PROFILES[perfilId()];
+  if (me && (!raw || raw.toLowerCase() === String(me.short || '').toLowerCase())) return me.name;
+  return raw ? `Dr. ${raw}` : (me?.name || 'Dr. Residente');
+}

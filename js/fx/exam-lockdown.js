@@ -12,6 +12,7 @@ import { esc, toast } from '../ui.js';
 import { playUiSfx } from './audio.js?v=20261121y';
 import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261121y';
 import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121y';
+import { detectCurrentBrowser } from './browser-check.js?v=20261121y';
 
 const ENDPOINT = '/api/examen';
 
@@ -151,7 +152,32 @@ async function buildQuestionPool(topic, count, seedStr) {
 let mounted = false;
 let activeSessionId = null;
 let lockdownRoot = null;
+let blockedRoot = null;
 let pillEl = null;
+let lockedHash = '';
+
+const BROWSER = detectCurrentBrowser();
+export const currentBrowserInfo = () => BROWSER;
+
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const MIN_EXIT_SEC = 2; // salidas más cortas = «parpadeo» (no cuentan)
+const COUNTED = new Set(['salida', 'recarga']);
+const EXIT_VERB = { salida: 'salió', recarga: 'recargó/cerró', interrupcion: 'interrupción' };
+
+const storeKey = (sessionId, id) => `bo:exam:${sessionId}:${id}`;
+function loadLocal(sessionId, id) {
+  try { return JSON.parse(localStorage.getItem(storeKey(sessionId, id)) || 'null'); } catch { return null; }
+}
+function saveLocal(sessionId, id, data) {
+  try { localStorage.setItem(storeKey(sessionId, id), JSON.stringify(data)); } catch {}
+}
+
+const fmtSec = (s) => (s < 10 ? `${(Math.round(s * 10) / 10).toString()} s` : `${Math.round(s)} s`);
+
+/** Mientras el examen está activo, ninguna otra vista puede cambiar el hash. */
+export function isExamLockActive() {
+  return Boolean(lockdownRoot || blockedRoot);
+}
 
 export function initExamLockdownMonitor() {
   if (mounted) return;
@@ -167,6 +193,13 @@ export function initExamLockdownMonitor() {
     if (R2_RESIDENTS.some((r) => r.id === p.id)) return p;
     return R2_RESIDENTS.find((r) => r.id === 'r2_mario') || R2_RESIDENTS[0];
   };
+
+  // Si algo intenta mover el hash detrás del examen, se regresa al instante
+  window.addEventListener('hashchange', () => {
+    if (isExamLockActive() && lockedHash && location.hash !== lockedHash) {
+      try { history.replaceState(null, '', lockedHash); } catch {}
+    }
+  }, true);
 
   // Píldora flotante en modo exploración para que el R2 vea quién es o pueda cambiar de tarjeta antes del examen
   const ensureExplorePill = (examActive) => {
@@ -212,12 +245,16 @@ export function initExamLockdownMonitor() {
     pillEl.innerHTML = `
       <span class="bo-pill-dot"></span>
       <span>R2 · <b>${esc(p.name)}</b> · Exploración activa</span>
+      ${BROWSER.allowed ? '' : `<span class="bo-pill-warn">⚠️ ${esc(BROWSER.name)}: para el examen usa Safari (iPhone) o Chrome (Android)</span>`}
       <button type="button" class="bo-pill-btn mono" data-bo-switch>Cambiar R2</button>
       <button type="button" class="bo-pill-btn mono" data-bo-docente style="border-color:rgba(255,58,82,.55);color:#ff8096">Control Docente (HE)</button>
     `;
   };
 
+  let polling = false;
   const poll = async () => {
+    if (polling) return;
+    polling = true;
     try {
       const inGate = Boolean(document.getElementById('boot-gate')) || document.body.classList.contains('is-landing');
       if (inGate) {
@@ -228,35 +265,56 @@ export function initExamLockdownMonitor() {
       if (isOnAdscritoView() && isAdscrito()) {
         ensureExplorePill(false);
         if (lockdownRoot) closeLockdownOverlay();
+        if (blockedRoot) closeBlockedScreen();
         return;
       }
 
       const p = effectiveResident();
+      const extra = lockdownRoot?._payload?.() || {};
+      // Examen ya entregado en este dispositivo: se re-envía hasta que el servidor lo registre
+      if (!lockdownRoot && activeSessionId) {
+        const local = loadLocal(activeSessionId, p.id);
+        if (local?.submitted) Object.assign(extra, { sessionId: activeSessionId, submitted: local.submitted, events: local.events || [] });
+      }
       const res = await apiPost({
         action: 'heartbeat',
         id: p.id,
         name: p.name,
-        section: currentSectionLabel(),
+        section: lockdownRoot ? 'Examen' : currentSectionLabel(),
+        browser: BROWSER,
+        ...extra,
       });
       const exam = res?.exam;
       const me = res?.me;
       ensureExplorePill(Boolean(exam?.active));
 
-      if (exam?.active && me?.state !== 'entregado') {
-        if (activeSessionId !== exam.sessionId || !lockdownRoot) {
+      const localDone = exam?.active && loadLocal(exam.sessionId, p.id)?.submitted;
+      if (exam?.active && me?.state !== 'entregado' && !localDone) {
+        if (!BROWSER.allowed) {
+          activeSessionId = exam.sessionId;
+          if (!blockedRoot) launchBlockedScreen(exam, p);
+        } else if (activeSessionId !== exam.sessionId || !lockdownRoot) {
           activeSessionId = exam.sessionId;
           launchLockdownOverlay(exam, me, p);
         } else if (lockdownRoot && typeof lockdownRoot._syncRemoteMe === 'function') {
           lockdownRoot._syncRemoteMe(exam, me);
         }
-      } else if (!exam?.active && lockdownRoot && !lockdownRoot.dataset.submitting) {
-        closeLockdownOverlay();
-        if (exam?.ended) {
-          toast('La Dra. Hernández finalizó la sesión del examen.');
+      } else {
+        if (exam?.active) activeSessionId = exam.sessionId;
+        if (blockedRoot) closeBlockedScreen();
+        if (lockdownRoot && !lockdownRoot.dataset.submitting) {
+          if (exam?.active && me?.state === 'entregado' && typeof lockdownRoot._syncRemoteMe === 'function') {
+            lockdownRoot._syncRemoteMe(exam, me); // cierre docente («Calificar así»)
+          } else if (!exam?.active) {
+            closeLockdownOverlay();
+            if (exam?.ended) toast('La Dra. Hernández finalizó la sesión del examen.');
+          }
         }
       }
     } catch {
       // Sin red temporal: sigue intentando en el siguiente ciclo
+    } finally {
+      polling = false;
     }
   };
 
@@ -270,9 +328,120 @@ function closeLockdownOverlay() {
   try { lockdownRoot._cleanup?.(); } catch {}
   lockdownRoot.remove();
   lockdownRoot = null;
-  document.body.classList.remove('is-exam-locked');
+  if (!blockedRoot) document.body.classList.remove('is-exam-locked');
 }
 
+function closeBlockedScreen() {
+  if (!blockedRoot) return;
+  blockedRoot.remove();
+  blockedRoot = null;
+  if (!lockdownRoot) document.body.classList.remove('is-exam-locked');
+}
+
+/* ------------------------------------------------------------------
+   Pantalla para navegadores no permitidos (Edge, Opera, Chrome iOS…)
+   ------------------------------------------------------------------ */
+function launchBlockedScreen(exam, p) {
+  closeLockdownOverlay();
+  lockedHash = location.hash;
+  document.body.classList.add('is-exam-locked');
+  const root = document.createElement('div');
+  root.className = 'bo-lockdown bo-blocked';
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-label', 'Navegador no permitido');
+  const link = `${location.origin}${location.pathname}`;
+  root.innerHTML = `
+    <div class="bo-takeover-stage">
+      <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261121y" alt="" width="96" height="96" /></div>
+      <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
+      <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
+      <div class="bo-takeover-rules mono">
+        <div><span>RESIDENTE</span><b>${esc(p.name)} (R2)</b></div>
+        <div><span>DETECTADO</span><b class="bo-browser-bad">${esc(BROWSER.label)}</b></div>
+        <div><span>EXAMEN</span><b>${esc(exam.topicLabel || 'Cirugía General R2')}</b></div>
+      </div>
+      ${BROWSER.reason ? `<p class="muted mono" style="margin:0;font-size:12px">${esc(BROWSER.reason)}</p>` : ''}
+      <div class="bo-blocked-link mono">${esc(link)}</div>
+      <button type="button" class="btn btn-glow lg" data-bo-copy-link>Copiar link</button>
+      <p class="muted" style="margin:0;font-size:13px">La Dra. Hernández ya ve en su panel qué navegador estás usando.</p>
+    </div>
+  `;
+  root.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-bo-copy-link]')) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast('Link copiado. Ábrelo en Safari o Chrome.');
+    } catch {
+      toast('Mantén presionado el link para copiarlo.');
+    }
+  });
+  document.body.appendChild(root);
+  blockedRoot = root;
+}
+
+/* ------------------------------------------------------------------
+   Texto dibujado en canvas: la pregunta no existe como texto en el DOM,
+   así que los asistentes de IA del navegador no la pueden leer.
+   ------------------------------------------------------------------ */
+function wrapLines(ctx, text, maxW) {
+  const out = [];
+  for (const para of String(text || '').split(/\n+/)) {
+    const words = para.split(/\s+/).filter(Boolean);
+    let line = '';
+    for (let w of words) {
+      // Palabras más anchas que la línea: partir por letras
+      while (ctx.measureText(w).width > maxW && w.length > 1) {
+        let cut = w.length - 1;
+        while (cut > 1 && ctx.measureText(w.slice(0, cut)).width > maxW) cut -= 1;
+        if (line) { out.push(line); line = ''; }
+        out.push(w.slice(0, cut));
+        w = w.slice(cut);
+      }
+      const test = line ? `${line} ${w}` : w;
+      if (ctx.measureText(test).width <= maxW || !line) line = test;
+      else { out.push(line); line = w; }
+    }
+    if (line) out.push(line);
+  }
+  return out.length ? out : [''];
+}
+
+function paintTextCanvas(canvas) {
+  const text = canvas._boText;
+  if (text == null) return;
+  const host = canvas.parentElement;
+  if (!host) return;
+  const cs = getComputedStyle(canvas);
+  const width = Math.max(40, Math.floor(canvas.getBoundingClientRect().width || host.clientWidth));
+  const fontSize = parseFloat(cs.fontSize) || 16;
+  const lineH = Math.round(fontSize * (parseFloat(canvas.dataset.lh || '1.5') || 1.5));
+  const font = `${cs.fontWeight || 500} ${fontSize}px ${cs.fontFamily || 'system-ui, sans-serif'}`;
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  const ctx = canvas.getContext('2d');
+  ctx.font = font;
+  const lines = wrapLines(ctx, text, width - 1);
+  const height = Math.ceil(lines.length * lineH + fontSize * 0.25);
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  canvas.style.height = `${height}px`;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = font;
+  ctx.fillStyle = cs.color || '#f3edf0';
+  ctx.textBaseline = 'top';
+  const pad = Math.round((lineH - fontSize) / 2);
+  lines.forEach((ln, i) => ctx.fillText(ln, 0, i * lineH + pad));
+}
+
+function paintAllCanvases(scope) {
+  scope.querySelectorAll('canvas[data-bo-text]').forEach((c) => paintTextCanvas(c));
+}
+
+/* ------------------------------------------------------------------
+   Examen blindado
+   ------------------------------------------------------------------ */
 const TAKEOVER_SEC = 8;
 
 function makeSfxAudio(file, vol = 0.85) {
@@ -294,7 +463,6 @@ function playSynthTakeoverAudio() {
     if (!eng || eng.ctx.state !== 'running') return;
     const { ctx, dry } = eng;
     const t0 = ctx.currentTime + 0.02;
-    // Pulso sub-grave de bloqueo + sirena descendente breve
     const sub = ctx.createOscillator();
     const sg = ctx.createGain();
     sub.type = 'sawtooth';
@@ -308,8 +476,6 @@ function playSynthTakeoverAudio() {
     lp.frequency.value = 340;
     sub.connect(lp); lp.connect(sg); sg.connect(dry || ctx.destination);
     sub.start(t0); sub.stop(t0 + 1.6);
-
-    // Latidos acelerados hasta los 8 s
     [1.6, 2.8, 3.9, 4.9, 5.7, 6.4, 7.0, 7.5].forEach((at, i) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
@@ -324,11 +490,12 @@ function playSynthTakeoverAudio() {
     });
   } catch {}
 }
-
 async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   closeLockdownOverlay();
+  closeBlockedScreen();
   unlockPortalAudio();
   document.body.classList.add('is-exam-locked');
+  lockedHash = location.hash;
   try {
     const aiDrawer = document.getElementById('calot-ai-drawer');
     if (aiDrawer) aiDrawer.hidden = true;
@@ -338,29 +505,34 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
 
   const p = residentProfile || perfil();
   const canReturnToDocente = isAdscrito();
+  const persisted = loadLocal(exam.sessionId, p.id);
+  const resuming = Boolean(persisted?.started);
+
   const root = document.createElement('div');
   root.id = 'bo-lockdown-root';
-  root.className = 'bo-lockdown is-takeover is-glitch-hit';
+  root.className = `bo-lockdown${resuming ? '' : ' is-takeover is-glitch-hit'}`;
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
   root.setAttribute('aria-label', 'Examen Departamental R2 · Bloqueo Activo');
   document.body.appendChild(root);
   lockdownRoot = root;
 
-  // Vibración háptica intensa en celulares Android compatibles
-  try { navigator.vibrate?.([220, 70, 260, 70, 340, 90, 480]); } catch {}
-
   // Secuencia sonora de bloqueo de 8 s: alerta + glitch + riser + impacto al final
-  playUiSfx('bad');
-  playSynthTakeoverAudio();
-  const alertAudio = makeSfxAudio('alert.mp3', 0.88);
-  const glitchAudio = makeSfxAudio('glitch.mp3', 0.72);
-  const riserAudio = makeSfxAudio('riser.mp3', 0.82);
-  const impactAudio = makeSfxAudio('impacto.mp3', 0.92);
-  const takeoverAudios = [alertAudio, glitchAudio, riserAudio, impactAudio].filter(Boolean);
-  alertAudio?.play().catch(() => {});
-  glitchAudio?.play().catch(() => {});
-
+  let takeoverAudios = [];
+  let riserAudio = null;
+  let impactAudio = null;
+  if (!resuming) {
+    try { navigator.vibrate?.([220, 70, 260, 70, 340, 90, 480]); } catch {}
+    playUiSfx('bad');
+    playSynthTakeoverAudio();
+    const alertAudio = makeSfxAudio('alert.mp3', 0.88);
+    const glitchAudio = makeSfxAudio('glitch.mp3', 0.72);
+    riserAudio = makeSfxAudio('riser.mp3', 0.82);
+    impactAudio = makeSfxAudio('impacto.mp3', 0.92);
+    takeoverAudios = [alertAudio, glitchAudio, riserAudio, impactAudio].filter(Boolean);
+    alertAudio?.play().catch(() => {});
+    glitchAudio?.play().catch(() => {});
+  }
   const lockSteps = [
     'Módulos de consulta y resúmenes desconectados',
     'Asistente IA, copiado y capturas deshabilitados',
@@ -374,7 +546,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     <div class="bo-takeover-vignette" aria-hidden="true"></div>
     <div class="bo-takeover-flash" data-bo-flash aria-hidden="true"></div>
     ${canReturnToDocente ? `<button type="button" class="btn btn-sm btn-ghost mono" data-bo-back-docente style="position:fixed;top:14px;right:16px;z-index:999;border-color:rgba(255,90,110,.5)">← Volver a Consola Dra. Hernández</button>` : ''}
-    <div class="bo-takeover-stage" data-bo-takeover>
+    <div class="bo-takeover-stage" data-bo-takeover ${resuming ? 'hidden' : ''}>
       <div class="bo-takeover-badge mono"><i class="bo-live-led"></i>PROTOCOLO BLACK OPS · INTERVENCIÓN REMOTA</div>
       <div class="bo-takeover-reticle" aria-hidden="true">
         <span class="bo-ret-ring is-a"></span>
@@ -416,7 +588,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   const stepEls = [...root.querySelectorAll('[data-bo-step]')];
   let rafId = 0;
   let cols = [];
-  const resize = () => {
+  const resizeMatrix = () => {
     const w = window.innerWidth;
     const h = window.innerHeight;
     canvas.width = w;
@@ -425,8 +597,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     const n = Math.ceil(w / colW);
     cols = Array.from({ length: n }, (_, i) => ({ x: i * colW + 6, y: Math.random() * h, v: 3.5 + Math.random() * 6 }));
   };
-  resize();
-  window.addEventListener('resize', resize);
+  resizeMatrix();
 
   const triggerTakeoverFlash = (strong = false) => {
     if (!flashEl || !root.isConnected) return;
@@ -434,7 +605,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     void flashEl.offsetWidth;
     flashEl.classList.add(strong ? 'is-bang' : 'is-pulse');
   };
-  triggerTakeoverFlash(false);
+  if (!resuming) triggerTakeoverFlash(false);
 
   const tokens = ['LOCK::R2', 'HGR_72', 'CALOT//OS', 'NO_EXIT', 'PROCTOR_ON', '0x72F1', 'AUDIT_QX', 'AI_OFF', 'SEAL_8S'];
   const takeoverStartMs = performance.now();
@@ -458,36 +629,192 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       ctx.fillRect(0, Math.random() * canvas.height, canvas.width, 1 + Math.random() * 4);
     }
     if (barEl) barEl.style.width = `${Math.round(k * 100)}%`;
-    if (root.classList.contains('is-takeover')) {
-      rafId = requestAnimationFrame(drawMatrix);
-    }
+    if (root.classList.contains('is-takeover')) rafId = requestAnimationFrame(drawMatrix);
   };
-  rafId = requestAnimationFrame(drawMatrix);
+  if (!resuming) rafId = requestAnimationFrame(drawMatrix);
 
   const qs = await buildQuestionPool(exam.topic, exam.questionCount || 15, `${exam.sessionId}:${p.id}`);
+  if (!root.isConnected) return;
   const examStage = root.querySelector('[data-bo-exam]');
   const takeoverStage = root.querySelector('[data-bo-takeover]');
   const cheatModal = root.querySelector('[data-bo-cheat]');
   const countEl = root.querySelector('[data-bo-countdown]');
+  const N = qs.length;
 
-  let qIdx = 0;
-  const answers = [];
-  let correctCount = 0;
-  let isLockedByCheat = Boolean(initialMe?.locked);
-  let strikesCount = initialMe?.strikes || 0;
+  // ---- Estado del examen (persistido en el dispositivo para sobrevivir recargas) ----
+  const st = {
+    started: false,
+    answers: Array(N).fill(null), // { i, ts }
+    flags: Array(N).fill(false),
+    qIdx: 0,
+    events: [],
+    pending: null, // { since, q } mientras la pestaña está oculta / recargando
+    submitted: null,
+    ...(persisted || {}),
+  };
+  if (!Array.isArray(st.answers) || st.answers.length !== N) st.answers = Array(N).fill(null);
+  if (!Array.isArray(st.flags) || st.flags.length !== N) st.flags = Array(N).fill(false);
+  st.qIdx = Math.max(0, Math.min(N - 1, Number(st.qIdx) || 0));
+  const persist = () => saveLocal(exam.sessionId, p.id, st);
+
+  let pardoned = Number(initialMe?.pardonedStrikes || 0);
+  let serverLocked = Boolean(initialMe?.locked);
   let examRunning = false;
-  let hiddenSince = 0;
-  let lastStrikeTs = 0;
   let clockInterval = 0;
   let tauntLoop = null;
-  let baseVpW = window.visualViewport?.width || window.innerWidth;
-  let baseVpH = window.visualViewport?.height || window.innerHeight;
-  let viewportCooldown = 0;
+  let blurSince = 0;
+  let sawHiddenSinceBlur = false;
+  let vpSince = 0;
+  let vpWhy = '';
+  let shownAt = Date.now();
 
-  // Bloquear copiar, pegar, clic derecho e invocación de búsqueda / IA / inspección durante el examen
-  const blockEvent = (e) => {
-    if (examRunning) e.preventDefault();
+  const countedEvents = () => st.events.filter((e) => COUNTED.has(e.k));
+  const strikesCount = () => countedEvents().length;
+  const limit = exam.strictMode === '1strike' ? 1 : exam.strictMode === '2strikes' ? 2 : 999;
+  const isLockedByCheat = () => serverLocked || (strikesCount() - pardoned >= limit);
+  const correctCount = () => st.answers.reduce((a, ans, i) => a + (ans && ans.i === qs[i]?.answer ? 1 : 0), 0);
+  const answeredCount = () => st.answers.filter(Boolean).length;
+  const curQ = () => st.qIdx + 1;
+
+  const payload = () => ({
+    sessionId: exam.sessionId,
+    qIndex: st.qIdx,
+    qTotal: N,
+    answered: answeredCount(),
+    correct: correctCount(),
+    events: st.events.slice(-80),
+  });
+  root._payload = () => (st.started ? payload() : { sessionId: exam.sessionId });
+
+  const syncNow = async () => {
+    try {
+      const r = await apiPost({ action: 'progress', id: p.id, name: p.name, browser: BROWSER, ...payload() });
+      if (r?.me) applyMe(r.me);
+    } catch {}
   };
+
+  const applyMe = (me) => {
+    pardoned = Number(me.pardonedStrikes || 0);
+    const wasLocked = isLockedByCheat();
+    serverLocked = Boolean(me.locked);
+    const nowLocked = isLockedByCheat();
+    if (wasLocked && !nowLocked) {
+      cheatModal.hidden = true;
+      toast('La Dra. Hernández desbloqueó tu examen. Continúa.');
+      playUiSfx('ok');
+    } else if (!wasLocked && nowLocked) {
+      renderCheatWarning();
+    }
+    updateHud();
+  };
+
+  const addEvent = (ev) => {
+    st.events.push({ ts: Date.now(), ...ev });
+    if (st.events.length > 80) st.events = st.events.slice(-80);
+    persist();
+  };
+
+  // ---- Detección de salidas, parpadeos, recargas e interrupciones ----
+  const registerExit = (kind, sec, q, why) => {
+    addEvent({ k: kind, q, s: sec, why });
+    if (COUNTED.has(kind)) {
+      playUiSfx('bad');
+      updateHud();
+      renderCheatWarning();
+    }
+    syncNow();
+  };
+
+  const onVisibility = () => {
+    if (!examRunning) return;
+    if (document.hidden) {
+      sawHiddenSinceBlur = true;
+      if (!st.pending) { st.pending = { since: Date.now(), q: curQ() }; persist(); }
+    } else if (st.pending) {
+      const sec = (Date.now() - st.pending.since) / 1000;
+      const q = st.pending.q;
+      st.pending = null;
+      if (sec >= MIN_EXIT_SEC) registerExit('salida', sec, q, 'Salió de la pestaña / cambió de app');
+      else registerExit('parpadeo', sec, q, 'Pestaña oculta menos de 2 s');
+    }
+  };
+
+  const onPageHide = () => {
+    if (!examRunning || root.dataset.submitting) return;
+    if (!st.pending) st.pending = { since: Date.now(), q: curQ() };
+    persist();
+  };
+
+  const onWindowBlur = () => {
+    if (!examRunning) return;
+    blurSince = Date.now();
+    sawHiddenSinceBlur = document.hidden;
+  };
+  const onWindowFocus = () => {
+    if (!examRunning || !blurSince) return;
+    const sec = (Date.now() - blurSince) / 1000;
+    blurSince = 0;
+    if (!sawHiddenSinceBlur && sec >= 0.8) {
+      addEvent({ k: 'interrupcion', q: curQ(), s: sec, why: 'Perdió el foco sin salir (algo se abrió encima)' });
+      syncNow();
+    }
+  };
+
+  // Cambio grande del área visible: típico cuando se abre un panel de IA o pantalla dividida
+  const vv = window.visualViewport;
+  const layoutSize = () => {
+    if (vv) return { w: vv.width * vv.scale, h: vv.height * vv.scale };
+    return { w: window.innerWidth, h: window.innerHeight };
+  };
+  let base = layoutSize();
+  const onViewport = () => {
+    if (!examRunning) { base = layoutSize(); return; }
+    const cur = layoutSize();
+    const rotated = (cur.w > cur.h) !== (base.w > base.h);
+    if (rotated) { base = cur; vpSince = 0; return; }
+    if (cur.h > base.h) base.h = cur.h; // la barra de Safari al ocultarse agranda; se toma el máximo
+    if (cur.w > base.w) base.w = cur.w;
+    const dh = (base.h - cur.h) / base.h;
+    const dw = (base.w - cur.w) / base.w;
+    const shrunk = dh > 0.18 || dw > 0.15;
+    if (shrunk && !vpSince) {
+      vpSince = Date.now();
+      vpWhy = dw > 0.15 ? 'Pantalla dividida / ventana más angosta' : 'Área visible reducida (panel encima)';
+    } else if (!shrunk && vpSince) {
+      const sec = (Date.now() - vpSince) / 1000;
+      vpSince = 0;
+      if (sec >= 0.8) {
+        addEvent({ k: 'interrupcion', q: curQ(), s: sec, why: vpWhy });
+        syncNow();
+      }
+    }
+    repaintSoon();
+  };
+
+  let repaintT = 0;
+  let lastPaintW = 0;
+  const repaintSoon = () => {
+    clearTimeout(repaintT);
+    repaintT = setTimeout(() => {
+      const w = examStage.clientWidth;
+      if (w && w !== lastPaintW) { lastPaintW = w; paintAllCanvases(examStage); }
+    }, 120);
+  };
+
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('pagehide', onPageHide);
+  window.addEventListener('beforeunload', onPageHide);
+  window.addEventListener('blur', onWindowBlur);
+  window.addEventListener('focus', onWindowFocus);
+  window.addEventListener('resize', onViewport);
+  vv?.addEventListener('resize', onViewport);
+
+  // Bloquear copiar, pegar, seleccionar y clic derecho durante el examen
+  const blockEvent = (e) => { if (examRunning) e.preventDefault(); };
+  document.addEventListener('contextmenu', blockEvent, true);
+  document.addEventListener('copy', blockEvent, true);
+  document.addEventListener('cut', blockEvent, true);
+  document.addEventListener('selectstart', blockEvent, true);
   const blockShortcuts = (e) => {
     if (!examRunning) return;
     const k = String(e.key || '').toLowerCase();
@@ -496,121 +823,36 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       e.stopPropagation();
     }
   };
-  document.addEventListener('contextmenu', blockEvent, true);
-  document.addEventListener('copy', blockEvent, true);
-  document.addEventListener('cut', blockEvent, true);
   document.addEventListener('keydown', blockShortcuts, true);
 
-  const registerStrike = async (awaySec, reason) => {
-    if (!examRunning || root.dataset.submitting) return;
-    const now = Date.now();
-    if (now - lastStrikeTs < 1800) return; // evitar duplicado blur + visibilitychange del mismo gesto
-    lastStrikeTs = now;
-    playUiSfx('bad');
-    try {
-      const r = await apiPost({
-        action: 'strike',
-        id: p.id,
-        name: p.name,
-        qNum: qIdx + 1,
-        awaySec,
-        reason,
-      });
-      if (r?.me) {
-        strikesCount = r.me.strikes || (strikesCount + 1);
-        isLockedByCheat = Boolean(r.me.locked);
-      } else {
-        strikesCount += 1;
-        if (exam.strictMode === '1strike' || (exam.strictMode === '2strikes' && strikesCount >= 2)) {
-          isLockedByCheat = true;
-        }
-      }
-    } catch {
-      strikesCount += 1;
-      if (exam.strictMode !== 'warn' && strikesCount >= 2) isLockedByCheat = true;
-    }
-    renderCheatWarning(awaySec);
-  };
+  // ---- UI ----
+  const lastCountedEvent = () => countedEvents().slice(-1)[0] || null;
 
-  const onVisibility = () => {
-    if (!examRunning) return;
-    if (document.hidden) {
-      hiddenSince = Date.now();
-    } else if (hiddenSince > 0) {
-      const awaySec = Math.max(1, Math.round((Date.now() - hiddenSince) / 1000));
-      hiddenSince = 0;
-      registerStrike(awaySec, 'Salió de la pestaña / cambió de aplicación');
-    }
-  };
-
-  const onWindowBlur = () => {
-    if (!examRunning) return;
-    if (!hiddenSince) hiddenSince = Date.now();
-    // Si pierde foco hacia Edge Copilot, panel lateral o multitarea sin ocultar la pestaña
-    setTimeout(() => {
-      if (!document.hidden && !document.hasFocus() && hiddenSince > 0) {
-        const awaySec = Math.max(1, Math.round((Date.now() - hiddenSince) / 1000));
-        hiddenSince = 0;
-        registerStrike(awaySec, 'Ventana fuera de foco / panel IA o multitarea');
-      }
-    }, 380);
-  };
-
-  const onWindowFocus = () => {
-    if (!examRunning) return;
-    if (hiddenSince > 0) {
-      const awaySec = Math.max(1, Math.round((Date.now() - hiddenSince) / 1000));
-      hiddenSince = 0;
-      registerStrike(awaySec, 'Regresó tras salir de la ventana');
-    }
-  };
-
-  // Detector de pantalla dividida / panel lateral (ej. Copilot sidebar en Edge) sin disparar falsos positivos al rotar
-  const onViewportResize = () => {
-    if (!examRunning) return;
-    const vw = window.visualViewport?.width || window.innerWidth;
-    const vh = window.visualViewport?.height || window.innerHeight;
-    const now = Date.now();
-    const widthDrop = baseVpW - vw;
-    const heightDrop = baseVpH - vh;
-    const flipped = (baseVpW > baseVpH) !== (vw > vh);
-    if (flipped) {
-      baseVpW = vw;
-      baseVpH = vh;
-      return;
-    }
-    if (now - viewportCooldown > 2500 && ((widthDrop > 130 && Math.abs(heightDrop) < 80) || (heightDrop > 190 && Math.abs(widthDrop) < 40))) {
-      viewportCooldown = now;
-      registerStrike(2, 'Panel lateral IA / pantalla dividida detectada');
-    }
-    baseVpW = vw;
-    baseVpH = vh;
-  };
-
-  document.addEventListener('visibilitychange', onVisibility);
-  window.addEventListener('blur', onWindowBlur);
-  window.addEventListener('focus', onWindowFocus);
-  window.visualViewport?.addEventListener('resize', onViewportResize);
-
-  const renderCheatWarning = (awaySec = 1) => {
+  const renderCheatWarning = () => {
     if (!cheatModal) return;
-    cheatModal.hidden = false;
-    if (isLockedByCheat) {
+    const n = strikesCount();
+    const last = lastCountedEvent();
+    const lastTxt = last
+      ? `${last.k === 'recarga' ? 'recargó/cerró la página' : 'salió'} ${fmtSec(last.s)} en la Pregunta ${last.q}`
+      : '';
+    if (isLockedByCheat()) {
+      cheatModal.hidden = false;
       cheatModal.innerHTML = `
         <div class="bo-cheat-card is-locked">
           <span class="bo-cheat-tag mono">🔒 EXAMEN BLOQUEADO POR SISTEMA ANTI-TRAMPA</span>
           <h2>Se detectó salida de la aplicación</h2>
-          <p>Acumulaste <b>${strikesCount} ${strikesCount === 1 ? 'salida' : 'salidas'}</b> de pantalla (última: ${awaySec} s fuera en la Pregunta ${qIdx + 1}).</p>
+          <p>Acumulaste <b>${n} ${n === 1 ? 'salida' : 'salidas'}</b> de pantalla${lastTxt ? ` (última: ${lastTxt})` : ''}.</p>
           <p class="muted">Tu pantalla ha quedado bloqueada y se notificó en vivo al monitor de la <b>Dra. Araceli Hernández Vargas</b>. Espera a que autorice tu desbloqueo desde su panel.</p>
           <div class="bo-cheat-pulse mono">ESPERANDO AUTORIZACIÓN DOCENTE EN LÍNEA…</div>
         </div>
       `;
-    } else {
+    } else if (last) {
+      cheatModal.hidden = false;
       cheatModal.innerHTML = `
         <div class="bo-cheat-card">
-          <span class="bo-cheat-tag mono">⚠️ ALERTA ANTI-TRAMPA · FALTA REGISTRADA (${strikesCount})</span>
+          <span class="bo-cheat-tag mono">⚠️ ALERTA ANTI-TRAMPA · FALTA REGISTRADA (${n})</span>
           <h2>No salgas de la pantalla del examen</h2>
-          <p>Estuviste <b>${awaySec} s</b> fuera de la ventana en la <b>Pregunta ${qIdx + 1}</b>. El incidente ya quedó registrado en el monitor en vivo de la Dra. Hernández.</p>
+          <p>Se registró que ${esc(lastTxt)}. El incidente ya quedó registrado en el monitor en vivo de la Dra. Hernández.</p>
           <p class="muted">${exam.strictMode === 'warn' ? 'Cada salida queda grabada en tu reporte final.' : 'En la siguiente salida tu examen se bloqueará automáticamente.'}</p>
           <button type="button" class="btn btn-glow" data-bo-cheat-ack>Entendido, continuar examen</button>
         </div>
@@ -624,15 +866,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       finishAndEvaluate(true);
       return;
     }
-    if (isLockedByCheat && !remoteMe.locked) {
-      isLockedByCheat = false;
-      cheatModal.hidden = true;
-      toast('La Dra. Hernández desbloqueó tu examen. Continúa.');
-      playUiSfx('ok');
-    } else if (!isLockedByCheat && remoteMe.locked) {
-      isLockedByCheat = true;
-      renderCheatWarning(1);
-    }
+    if (examRunning) applyMe(remoteMe);
   };
 
   const formatTimeLeft = () => {
@@ -643,56 +877,144 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     return { remSec, text: `${m}:${s}` };
   };
 
+  const updateHud = () => {
+    const el = root.querySelector('[data-bo-strikes]');
+    if (!el) return;
+    const n = strikesCount();
+    el.textContent = `Salidas: ${n}`;
+    el.classList.toggle('is-warn', n > 0);
+  };
+
+  const mapHTML = () => qs.map((_, i) => {
+    const cls = [
+      'bo-map-btn',
+      st.answers[i] ? 'is-answered' : '',
+      st.flags[i] ? 'is-flagged' : '',
+      i === st.qIdx ? 'is-current' : '',
+    ].filter(Boolean).join(' ');
+    return `<button type="button" class="${cls}" data-bo-goto="${i}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`;
+  }).join('');
+
   const renderQuestion = () => {
-    const q = qs[qIdx];
-    if (!q) {
-      renderReadyToSubmit();
-      return;
-    }
+    const q = qs[st.qIdx];
+    if (!q) return;
     const { text: timeText } = formatTimeLeft();
+    const n = strikesCount();
+    const chosen = st.answers[st.qIdx]?.i;
+    const answered = answeredCount();
+    shownAt = Date.now();
     examStage.innerHTML = `
       <div class="bo-exam-shell">
         <header class="bo-exam-head">
           <div>
             <span class="mono bo-exam-kicker">EXAMEN DEPARTAMENTAL R2 · ${esc(exam.topicLabel || 'CIRUGÍA GENERAL')}</span>
-            <h2>${esc(p.name)} <small class="mono muted">· Reactivo ${qIdx + 1} de ${qs.length}</small></h2>
+            <h2>${esc(p.name)} <small class="mono muted">· Reactivo ${st.qIdx + 1} de ${N}</small></h2>
           </div>
           <div class="bo-exam-meta mono">
-            <span class="bo-exam-strikes ${strikesCount > 0 ? 'is-warn' : ''}">Salidas: ${strikesCount}</span>
+            <span class="bo-exam-strikes ${n > 0 ? 'is-warn' : ''}" data-bo-strikes>Salidas: ${n}</span>
             <span class="bo-exam-timer" data-bo-timer>⏱ ${timeText}</span>
           </div>
         </header>
 
-        <div class="bo-exam-progress"><i style="width:${Math.round(((qIdx + 1) / qs.length) * 100)}%"></i></div>
+        <div class="bo-exam-progress"><i style="width:${Math.round((answered / N) * 100)}%"></i></div>
+
+        <nav class="bo-map" aria-label="Mapa de preguntas">${mapHTML()}</nav>
 
         <article class="card bo-question-card">
-          <p class="bo-question-stem">${esc(q.stem)}</p>
+          <div class="bo-q-top mono">
+            <span>Pregunta ${st.qIdx + 1}</span>
+            <button type="button" class="bo-flag-btn ${st.flags[st.qIdx] ? 'is-on' : ''}" data-bo-flag aria-pressed="${st.flags[st.qIdx] ? 'true' : 'false'}">⚑ ${st.flags[st.qIdx] ? 'Marcada para revisar' : 'Marcar para revisar'}</button>
+          </div>
+          <canvas class="bo-question-stem bo-text-canvas" data-bo-text data-lh="1.6" role="img" aria-label="Enunciado de la pregunta"></canvas>
           <div class="bo-options-list" role="radiogroup" aria-label="Opciones de respuesta">
-            ${q.options.map((opt, idx) => `
-              <button type="button" class="bo-opt-btn" data-bo-opt="${idx}">
-                <span>${esc(opt)}</span>
+            ${q.options.map((_, idx) => `
+              <button type="button" class="bo-opt-btn ${chosen === idx ? 'is-chosen' : ''}" data-bo-opt="${idx}" role="radio" aria-checked="${chosen === idx ? 'true' : 'false'}" aria-label="Opción ${LETTERS[idx]}">
+                <span class="bo-opt-letter mono" aria-hidden="true">${LETTERS[idx]}</span>
+                <canvas class="bo-text-canvas" data-bo-text data-lh="1.5" aria-hidden="true"></canvas>
               </button>
             `).join('')}
           </div>
         </article>
 
+        <div class="bo-nav-row">
+          <button type="button" class="btn btn-ghost" data-bo-prev ${st.qIdx === 0 ? 'disabled' : ''}>← Anterior</button>
+          <button type="button" class="btn btn-ghost" data-bo-next ${st.qIdx >= N - 1 ? 'disabled' : ''}>Siguiente →</button>
+        </div>
+        <button type="button" class="btn btn-glow lg bo-submit-btn" data-bo-review>Entregar examen (${answered}/${N} contestadas)</button>
+
         <footer class="bo-exam-foot mono muted">
-          <span>🔒 Sin retroceso · Sin pistas · Selección de texto deshabilitada</span>
+          <span>🔒 Sin pistas · Selección de texto deshabilitada</span>
           <span>Vigilancia en vivo: Dra. Araceli Hernández Vargas</span>
         </footer>
       </div>
     `;
+    const canvases = examStage.querySelectorAll('canvas[data-bo-text]');
+    canvases[0]._boText = q.stem;
+    q.options.forEach((opt, i) => { canvases[i + 1]._boText = opt; });
+    lastPaintW = examStage.clientWidth;
+    paintAllCanvases(examStage);
+    examStage.querySelector('.bo-map-btn.is-current')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
   };
 
-  const renderReadyToSubmit = () => {
-    examStage.innerHTML = `
-      <div class="bo-exam-shell is-done">
-        <article class="card bo-done-card">
-          <span class="mono bo-exam-kicker">REACTIVOS COMPLETADOS (${qs.length}/${qs.length})</span>
-          <h2>Has registrado todas tus respuestas, ${esc(p.name)}</h2>
-          <p class="muted">Tus respuestas ya están selladas. Presiona el botón para enviar tu examen al monitor de la Dra. Hernández y recibir tu veredicto de CALOT-OS.</p>
-          <button type="button" class="btn btn-glow lg" data-bo-submit-final>Pedirle a CALOT que me evalúe</button>
-        </article>
+  const goTo = (i) => {
+    st.qIdx = Math.max(0, Math.min(N - 1, i));
+    persist();
+    renderQuestion();
+    examStage.scrollIntoView?.({ block: 'start' });
+    syncNow();
+  };
+
+  const chooseOption = (chosenIdx) => {
+    const qi = st.qIdx;
+    const prev = st.answers[qi];
+    const now = Date.now();
+    if (prev && prev.i === chosenIdx) return;
+    // ¿Cambió (o dio) la respuesta justo después de una salida/interrupción?
+    const exits = st.events.filter((e) => e.k === 'salida' || e.k === 'recarga' || e.k === 'interrupcion');
+    if (prev) {
+      const after = exits.filter((e) => e.ts > prev.ts).slice(-1)[0];
+      if (after) {
+        addEvent({ k: 'cambio', q: qi + 1, from: LETTERS[prev.i], to: LETTERS[chosenIdx], s: after.s, ref: `${EXIT_VERB[after.k] || after.k} ${fmtSec(after.s)} en P${after.q}` });
+      }
+    } else {
+      const recent = exits.filter((e) => e.q === qi + 1 && now - e.ts < 120000).slice(-1)[0];
+      if (recent) {
+        addEvent({ k: 'cambio', q: qi + 1, from: null, to: LETTERS[chosenIdx], s: recent.s, ref: `${EXIT_VERB[recent.k] || recent.k} ${fmtSec(recent.s)} en P${recent.q}` });
+      }
+    }
+    st.answers[qi] = { i: chosenIdx, ts: now };
+    persist();
+    playUiSfx('click');
+    tauntLoop?.touch?.();
+    // Avanza sola a la siguiente pregunta sin contestar (si hay)
+    const nextUn = st.answers.findIndex((a, i) => !a && i > qi);
+    const anyUn = st.answers.findIndex((a) => !a);
+    const target = !prev ? (nextUn >= 0 ? nextUn : anyUn >= 0 ? anyUn : qi) : qi;
+    if (target !== qi) {
+      renderQuestion();
+      setTimeout(() => { if (examRunning && st.qIdx === qi) goTo(target); }, 260);
+    } else {
+      renderQuestion();
+      syncNow();
+    }
+  };
+
+  const renderSubmitConfirm = () => {
+    const unanswered = st.answers.map((a, i) => (a ? null : i + 1)).filter(Boolean);
+    const flagged = st.flags.map((f, i) => (f ? i + 1 : null)).filter(Boolean);
+    const clean = !unanswered.length && !flagged.length;
+    cheatModal.hidden = false;
+    cheatModal.innerHTML = `
+      <div class="bo-cheat-card bo-confirm-card">
+        <span class="bo-cheat-tag mono">${clean ? '✅ LISTO PARA ENTREGAR' : '⚠️ REVISA ANTES DE ENTREGAR'}</span>
+        <h2>${clean ? `Contestaste las ${N} preguntas` : '¿Entregar de todos modos?'}</h2>
+        ${unanswered.length ? `<p>Sin contestar: ${unanswered.map((n) => `<button type="button" class="bo-chip" data-bo-goto="${n - 1}">P${n}</button>`).join(' ')}</p>` : ''}
+        ${flagged.length ? `<p>Marcadas para revisar: ${flagged.map((n) => `<button type="button" class="bo-chip is-flag" data-bo-goto="${n - 1}">P${n}</button>`).join(' ')}</p>` : ''}
+        <p class="muted">Al entregar ya no podrás cambiar respuestas.</p>
+        <div class="bo-confirm-actions">
+          <button type="button" class="btn btn-ghost" data-bo-cancel-submit>Seguir revisando</button>
+          <button type="button" class="btn btn-glow" data-bo-submit-final>Entregar y que CALOT me evalúe</button>
+        </div>
       </div>
     `;
   };
@@ -704,34 +1026,35 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     clearInterval(clockInterval);
     tauntLoop?.stop?.();
 
-    const total = qs.length || 1;
-    const pct = Math.round((correctCount / total) * 100);
+    const total = N || 1;
+    const correct = correctCount();
+    const pct = Math.round((correct / total) * 100);
+    st.pending = null;
+    st.submitted = { correct, total, answered: answeredCount() };
+    persist();
     try {
-      await apiPost({
-        action: 'submit',
-        id: p.id,
-        name: p.name,
-        correct: correctCount,
-        total,
-      });
+      await apiPost({ action: 'submit', id: p.id, name: p.name, browser: BROWSER, ...payload(), correct, total, answered: answeredCount() });
     } catch {}
 
-    const reviewItems = answers.map((a, i) => ({
-      q: `${i + 1}. ${a.stem}`,
-      chosen: a.chosenText || 'Sin responder',
-      correct: a.correctText,
-      ok: a.ok,
-      exp: a.explanation,
-    }));
+    const reviewItems = qs.map((q, i) => {
+      const a = st.answers[i];
+      return {
+        q: `${i + 1}. ${q.stem}`,
+        chosen: a ? q.options[a.i] : 'Sin responder',
+        correct: q.options[q.answer],
+        ok: Boolean(a && a.i === q.answer),
+        exp: q.explanation,
+      };
+    });
 
     closeLockdownOverlay();
 
     playCalotEvaluation({
       pct,
-      correct: correctCount,
+      correct,
       total,
       modeLabel: `${exam.topicLabel || 'Examen R2'} · ${p.name}`,
-      detail: `${correctCount} de ${total} aciertos · ${strikesCount} salidas de pantalla${forced ? ' · Cierre docente' : ''}`,
+      detail: `${correct} de ${total} aciertos · ${strikesCount()} salidas de pantalla${forced ? ' · Cierre docente' : ''}`,
       reviewItems,
       onClose: () => {
         location.hash = '#/inicio';
@@ -746,51 +1069,76 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       location.hash = '#/adscrito';
       return;
     }
-    const ack = e.target.closest('[data-bo-cheat-ack]');
-    if (ack && !isLockedByCheat) {
+    if (e.target.closest('[data-bo-cheat-ack]') && !isLockedByCheat()) {
       cheatModal.hidden = true;
       return;
     }
-    if (isLockedByCheat) return;
+    if (e.target.closest('[data-bo-cancel-submit]')) {
+      cheatModal.hidden = true;
+      return;
+    }
+    if (isLockedByCheat() || !examRunning) return;
 
-    const optBtn = e.target.closest('[data-bo-opt]');
-    if (optBtn && examRunning) {
-      const chosenIdx = Number(optBtn.dataset.boOpt);
-      const q = qs[qIdx];
-      if (!q) return;
-      playUiSfx('click');
-      tauntLoop?.touch?.();
-      const ok = chosenIdx === q.answer;
-      if (ok) correctCount += 1;
-      answers.push({
-        stem: q.stem,
-        chosenText: q.options[chosenIdx],
-        correctText: q.options[q.answer],
-        ok,
-        explanation: q.explanation,
-      });
-      qIdx += 1;
-      apiPost({
-        action: 'progress',
-        id: p.id,
-        name: p.name,
-        qIndex: qIdx,
-        qTotal: qs.length,
-        answered: answers.length,
-        correct: correctCount,
-      }).catch(() => {});
+    const gotoBtn = e.target.closest('[data-bo-goto]');
+    if (gotoBtn) {
+      cheatModal.hidden = true;
+      goTo(Number(gotoBtn.dataset.boGoto));
+      return;
+    }
+    if (e.target.closest('[data-bo-prev]')) { goTo(st.qIdx - 1); return; }
+    if (e.target.closest('[data-bo-next]')) { goTo(st.qIdx + 1); return; }
+    if (e.target.closest('[data-bo-flag]')) {
+      st.flags[st.qIdx] = !st.flags[st.qIdx];
+      persist();
       renderQuestion();
       return;
     }
-
-    const subBtn = e.target.closest('[data-bo-submit-final]');
-    if (subBtn) {
+    const optBtn = e.target.closest('[data-bo-opt]');
+    if (optBtn) {
+      chooseOption(Number(optBtn.dataset.boOpt));
+      return;
+    }
+    if (e.target.closest('[data-bo-review]')) {
+      renderSubmitConfirm();
+      return;
+    }
+    if (e.target.closest('[data-bo-submit-final]')) {
       e.preventDefault();
       finishAndEvaluate(false);
     }
   });
 
-  // Secuencia dramática de 8 segundos para celulares y computadoras antes de abrir la Pregunta 1
+  const startExam = () => {
+    root.classList.remove('is-takeover');
+    takeoverStage.hidden = true;
+    examStage.hidden = false;
+    examRunning = true;
+    base = layoutSize();
+    if (!st.started) { st.started = true; persist(); }
+    // ¿Venimos de una recarga / cierre de la página a media prueba? Cuenta como salida con su tiempo real.
+    if (st.pending) {
+      const sec = Math.max(0.1, (Date.now() - st.pending.since) / 1000);
+      const q = st.pending.q;
+      st.pending = null;
+      addEvent({ k: 'recarga', q, s: sec, why: 'Recargó o cerró la página del examen' });
+    }
+    tauntLoop = startWaitingTaunts();
+    renderQuestion();
+    if (isLockedByCheat() || lastCountedEvent()?.ts > Date.now() - 5000) renderCheatWarning();
+    syncNow();
+
+    clockInterval = setInterval(() => {
+      const { remSec, text } = formatTimeLeft();
+      const tEl = root.querySelector('[data-bo-timer]');
+      if (tEl) tEl.textContent = `⏱ ${text}`;
+      if (remSec <= 0 && examRunning) finishAndEvaluate(true);
+    }, 1000);
+    if (document.fonts?.ready) document.fonts.ready.then(() => { if (root.isConnected) paintAllCanvases(examStage); });
+  };
+
+  // Secuencia dramática de 8 segundos antes de abrir la Pregunta 1 (se omite al reanudar tras recarga)
+  let takeoverInterval = 0;
+  const takeoverTimers = [];
   const markStep = (idx) => {
     const el = stepEls[idx];
     if (!el || el.classList.contains('is-done')) return;
@@ -799,90 +1147,79 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     if (ic) ic.textContent = '🔒';
     playUiSfx('click');
   };
+  if (resuming) {
+    startExam();
+  } else {
+    takeoverTimers.push(setTimeout(() => {
+      if (phaseEl) phaseEl.textContent = 'BLOQUEANDO MÓDULOS DE ESTUDIO E IA…';
+      riserAudio?.play().catch(() => {});
+      markStep(0);
+    }, 900));
+    takeoverTimers.push(setTimeout(() => {
+      markStep(1);
+      triggerTakeoverFlash(false);
+      try { navigator.vibrate?.(120); } catch {}
+    }, 2400));
+    takeoverTimers.push(setTimeout(() => {
+      if (phaseEl) phaseEl.textContent = 'VIGILANCIA ANTI-TRAMPA EN VIVO ARMADA…';
+      markStep(2);
+    }, 4000));
+    takeoverTimers.push(setTimeout(() => {
+      if (phaseEl) phaseEl.textContent = 'IMPACTO INMINENTE · PREPARA TU PANTALLA…';
+      root.classList.add('is-critical');
+      markStep(3);
+      triggerTakeoverFlash(false);
+      try { navigator.vibrate?.([90, 50, 140]); } catch {}
+    }, 5600));
 
-  let countSec = TAKEOVER_SEC;
-  const takeoverTimers = [];
-  takeoverTimers.push(setTimeout(() => {
-    if (phaseEl) phaseEl.textContent = 'BLOQUEANDO MÓDULOS DE ESTUDIO E IA…';
-    riserAudio?.play().catch(() => {});
-    markStep(0);
-  }, 900));
-  takeoverTimers.push(setTimeout(() => {
-    markStep(1);
-    triggerTakeoverFlash(false);
-    try { navigator.vibrate?.(120); } catch {}
-  }, 2400));
-  takeoverTimers.push(setTimeout(() => {
-    if (phaseEl) phaseEl.textContent = 'VIGILANCIA ANTI-TRAMPA EN VIVO ARMADA…';
-    markStep(2);
-  }, 4000));
-  takeoverTimers.push(setTimeout(() => {
-    if (phaseEl) phaseEl.textContent = 'IMPACTO INMINENTE · PREPARA TU PANTALLA…';
-    root.classList.add('is-critical');
-    markStep(3);
-    triggerTakeoverFlash(false);
-    try { navigator.vibrate?.([90, 50, 140]); } catch {}
-  }, 5600));
-
-  const takeoverInterval = setInterval(() => {
-    countSec -= 1;
-    if (countSec > 0) {
-      if (countEl) {
-        countEl.textContent = countSec <= 3 ? `INICIANDO EN ${countSec}` : `BLOQUEO EN ${countSec} s…`;
-        countEl.classList.toggle('is-final', countSec <= 3);
+    let countSec = TAKEOVER_SEC;
+    takeoverInterval = setInterval(() => {
+      countSec -= 1;
+      if (countSec > 0) {
+        if (countEl) {
+          countEl.textContent = countSec <= 3 ? `INICIANDO EN ${countSec}` : `BLOQUEO EN ${countSec} s…`;
+          countEl.classList.toggle('is-final', countSec <= 3);
+        }
+        if (countSec <= 3) {
+          triggerTakeoverFlash(false);
+          playUiSfx('nav');
+          try { navigator.vibrate?.(80); } catch {}
+        }
+      } else {
+        clearInterval(takeoverInterval);
+        if (countEl) countEl.textContent = 'EVALUACIÓN EN CURSO';
+        triggerTakeoverFlash(true);
+        impactAudio?.play().catch(() => {});
+        try { navigator.vibrate?.(260); } catch {}
+        takeoverTimers.push(setTimeout(() => {
+          if (!root.isConnected) return;
+          root.classList.remove('is-glitch-hit', 'is-critical');
+          startExam();
+        }, 280));
       }
-      if (countSec <= 3) {
-        triggerTakeoverFlash(false);
-        playUiSfx('nav');
-        try { navigator.vibrate?.(80); } catch {}
-      }
-    } else {
-      clearInterval(takeoverInterval);
-      if (countEl) countEl.textContent = 'EVALUACIÓN EN CURSO';
-      triggerTakeoverFlash(true);
-      impactAudio?.play().catch(() => {});
-      try { navigator.vibrate?.(260); } catch {}
-
-      takeoverTimers.push(setTimeout(() => {
-        if (!root.isConnected) return;
-        root.classList.remove('is-takeover', 'is-glitch-hit', 'is-critical');
-        takeoverStage.hidden = true;
-        examStage.hidden = false;
-        examRunning = true;
-        baseVpW = window.visualViewport?.width || window.innerWidth;
-        baseVpH = window.visualViewport?.height || window.innerHeight;
-        tauntLoop = startWaitingTaunts();
-        renderQuestion();
-        if (isLockedByCheat) renderCheatWarning(1);
-
-        clockInterval = setInterval(() => {
-          const { remSec, text } = formatTimeLeft();
-          const tEl = root.querySelector('[data-bo-timer]');
-          if (tEl) tEl.textContent = `⏱ ${text}`;
-          if (remSec <= 0 && examRunning) {
-            finishAndEvaluate(true);
-          }
-        }, 1000);
-      }, 280));
-    }
-  }, 1000);
+    }, 1000);
+  }
 
   root._cleanup = () => {
     examRunning = false;
     cancelAnimationFrame(rafId);
     clearInterval(takeoverInterval);
     clearInterval(clockInterval);
+    clearTimeout(repaintT);
     takeoverTimers.forEach(clearTimeout);
     tauntLoop?.stop?.();
     takeoverAudios.forEach((a) => { try { a.pause(); a.currentTime = 0; } catch {} });
-    window.removeEventListener('resize', resize);
+    document.removeEventListener('keydown', blockShortcuts, true);
     document.removeEventListener('contextmenu', blockEvent, true);
     document.removeEventListener('copy', blockEvent, true);
     document.removeEventListener('cut', blockEvent, true);
-    document.removeEventListener('keydown', blockShortcuts, true);
+    document.removeEventListener('selectstart', blockEvent, true);
     document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('pagehide', onPageHide);
+    window.removeEventListener('beforeunload', onPageHide);
     window.removeEventListener('blur', onWindowBlur);
     window.removeEventListener('focus', onWindowFocus);
-    window.visualViewport?.removeEventListener('resize', onViewportResize);
+    window.removeEventListener('resize', onViewport);
+    vv?.removeEventListener('resize', onViewport);
   };
 }

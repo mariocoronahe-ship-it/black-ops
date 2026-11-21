@@ -8,7 +8,7 @@ import { store, questions, todayISO, loadStoreData } from '../store.js?v=2026112
 import { esc } from '../ui.js';
 import { playUiSfx } from './audio.js?v=20261121y';
 import { unlockPortalAudio } from './portal-audio.js?v=20261121y';
-import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody } from '../perfil.js?v=20261121y';
+import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody, doctorTitle } from '../perfil.js?v=20261121y';
 
 export const BOOT_KEY = 'blackops:booted:v4';
 export const ROLE_KEY = 'calot:rol';
@@ -44,7 +44,7 @@ export function getBootMetrics() {
     ? CATALOGO_RECURSOS.filter((r) => r.type === '3d' || r.subtype === 'threejs').length
     : 13;
   const rawName = String(store.state.settings?.name || 'Residente').trim();
-  const doctorLabel = /^dra?\.\s/i.test(rawName) ? rawName : `Dr. ${rawName}`;
+  const doctorLabel = doctorTitle(rawName);
   return { modulesCount, dueCount, modelsCount, doctorLabel };
 }
 

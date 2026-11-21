@@ -21,7 +21,7 @@ import { renderPulsingCoreHTML } from '../fx/boot.js?v=20261121y';
 import { playUiSfx } from '../fx/audio.js?v=20261121y';
 import { esc, modal, toast, fmtDate } from '../ui.js';
 import * as S from '../scroll.js';
-import { perfil } from '../perfil.js?v=20261121y';
+import { perfil, doctorTitle } from '../perfil.js?v=20261121y';
 import { mountRankingCard } from './ranking.js?v=20261121y';
 
 export const section = 'inicio';
@@ -197,7 +197,7 @@ export function render() {
       <header class="orbit-head">
         <div>
           <p class="orbit-eyebrow">${today} · ${dueCount} TARJETAS HOY · ${hgrOpen.length + pendingTasks.length} PENDIENTES</p>
-          <h1 class="orbit-greeting">${greeting()}, <em>${/^dra?\.\s/i.test(name) ? esc(name) : `Dr. ${esc(name)}`}</em></h1>
+          <h1 class="orbit-greeting">${greeting()}, <em>${esc(doctorTitle(name))}</em></h1>
           <a href="#/ranking" class="rk-hero-pill" data-rk-hero-pill hidden></a>
         </div>
         <div class="orbit-head-acts">

@@ -57,7 +57,7 @@ let firstPullDone = false;
 function boardSig(b) {
   try {
     const ex = b?.exam || {};
-    const rs = Object.values(b?.residents || {}).map((r) => `${r.id}:${r.state}:${r.section}:${r.answered}:${r.strikes}:${r.locked}:${r.scorePct}`).sort().join('|');
+    const rs = Object.values(b?.residents || {}).map((r) => `${r.id}:${r.state}:${r.section}:${r.answered}:${r.strikes}:${r.locked}:${r.scorePct}:${(r.events || []).length}:${r.browser?.label}:${r.browser?.allowed}`).sort().join('|');
     return `${ex.active}:${ex.sessionId}:${ex.topic}:${ex.questionCount}:${rs}`;
   } catch {
     return '';
@@ -100,6 +100,8 @@ function buildRows() {
       strikes: r?.strikes || 0,
       locked: Boolean(r?.locked),
       strikeLog: Array.isArray(r?.strikeLog) ? r.strikeLog : [],
+      events: Array.isArray(r?.events) ? r.events : [],
+      browser: r?.browser || null,
       scorePct: r?.scorePct ?? null,
       correct: r?.correct || 0,
       total: r?.total || board.exam?.questionCount || 15,
@@ -139,16 +141,56 @@ function stateBadgeHTML(r) {
   return `<span class="ads-badge is-ok">🟢 Navegando · ${esc(r.section)}</span>`;
 }
 
+const fmtS = (s) => (s < 10 ? `${Math.round(s * 10) / 10} s` : `${Math.round(s)} s`);
+const KIND_TXT = { salida: 'salió', recarga: 'recargó/cerró', parpadeo: 'parpadeo', interrupcion: 'interrupción' };
+
+function eventText(e) {
+  if (e.k === 'cambio') {
+    const what = e.from ? `cambió ${e.from}→${e.to}` : `contestó ${e.to}`;
+    return `${e.ref || 'salida'} y ${what} en P${e.q}`;
+  }
+  if (e.k === 'interrupcion') return `P${e.q} · ${fmtS(e.s)} · ${e.why || 'interrupción'}`;
+  return `P${e.q} · ${fmtS(e.s)}${e.k === 'recarga' ? ' (recargó/cerró)' : ''}`;
+}
+
+function browserChipHTML(r) {
+  if (!r.browser) return '<span class="bo-browser-chip is-none">Navegador: —</span>';
+  const ok = Boolean(r.browser.allowed);
+  return `<span class="bo-browser-chip ${ok ? 'is-ok' : 'is-bad'}" title="${esc(r.browser.reason || '')}">${ok ? '✓' : '⛔'} ${esc(r.browser.label)}</span>`;
+}
+
+function antiCheatHTML(r) {
+  const exits = r.events.filter((e) => e.k === 'salida' || e.k === 'recarga');
+  const blinks = r.events.filter((e) => e.k === 'parpadeo');
+  const ints = r.events.filter((e) => e.k === 'interrupcion');
+  const changes = r.events.filter((e) => e.k === 'cambio');
+  const longest = exits.reduce((m, e) => (!m || e.s > m.s ? e : m), null);
+  const parts = [];
+  parts.push(exits.length === 0
+    ? '<span class="mono" style="color:#3ccf8e">🟢 0 salidas (Limpio)</span>'
+    : `<span class="mono" style="color:#ff4b66">⚠️ <b>${exits.length}</b> ${exits.length === 1 ? 'salida' : 'salidas'}${longest ? ` · más larga ${fmtS(longest.s)} en P${longest.q}` : ''}</span>`);
+  const items = [
+    ...exits.map((e) => `<li class="is-exit ${e === longest ? 'is-long' : ''}">🚪 ${esc(eventText(e))}</li>`),
+    ...ints.map((e) => `<li class="is-interrupt">⚠ ${esc(eventText(e))}</li>`),
+    ...changes.map((e) => `<li class="is-change">✎ ${esc(eventText(e))}</li>`),
+  ];
+  if (ints.length) parts.push(`<span class="mono" style="color:#e6a700;display:block">🟡 ${ints.length} ${ints.length === 1 ? 'interrupción' : 'interrupciones'}</span>`);
+  if (items.length) parts.push(`<ul class="bo-log">${items.join('')}</ul>`);
+  if (blinks.length) parts.push(`<small class="muted mono" style="display:block">${blinks.length} parpadeo${blinks.length === 1 ? '' : 's'} &lt;2 s (no cuentan)</small>`);
+  return parts.join('');
+}
+
 function downloadCSV(rows) {
   const ex = board.exam || {};
-  const header = ['Residente', 'Grado', 'Estado', 'Calificacion (%)', 'Aciertos', 'Total Reactivos', 'Salidas Detectadas', 'Detalle Anti-Trampa', 'Ultima Conexion'];
+  const header = ['Residente', 'Grado', 'Estado', 'Navegador', 'Calificacion (%)', 'Aciertos', 'Total Reactivos', 'Salidas Detectadas', 'Detalle Anti-Trampa', 'Ultima Conexion'];
   const lines = [header.join(',')];
   for (const r of rows) {
-    const logTxt = r.strikeLog.map((s) => `P${s.qNum} (${s.awaySec}s)`).join(' | ') || 'Limpio';
+    const logTxt = r.events.filter((e) => e.k !== 'parpadeo').map((e) => `${KIND_TXT[e.k] || e.k} ${eventText(e)}`).join(' | ').replace(/"/g, "'") || 'Limpio';
     const vals = [
       `"${r.name}"`,
       'R2',
       `"${r.state}"`,
+      `"${r.browser ? `${r.browser.label}${r.browser.allowed ? '' : ' (NO PERMITIDO)'}` : ''}"`,
       r.scorePct != null ? r.scorePct : '',
       r.state === 'entregado' ? r.correct : r.answered,
       r.qTotal,
@@ -178,6 +220,10 @@ export function render() {
   const entregadosList = rows.filter((r) => r.state === 'entregado');
   const bloqueadosList = rows.filter((r) => r.state === 'bloqueado_trampa');
   const conSalidas = rows.filter((r) => r.strikes > 0).length;
+  const withBrowser = rows.filter((r) => r.hasJoined && r.browser);
+  const okBrowsers = withBrowser.filter((r) => r.browser.allowed).length;
+  const badBrowsers = withBrowser.length - okBrowsers;
+  const conInterrupciones = rows.filter((r) => r.events.some((e) => e.k === 'interrupcion')).length;
   const prom = entregadosList.length
     ? Math.round(entregadosList.reduce((a, r) => a + (r.scorePct || 0), 0) / entregadosList.length)
     : 0;
@@ -219,7 +265,12 @@ export function render() {
     <article class="card lamp ads-kpi-alert" style="--c:var(--crimson)">
       <p class="mono">Vigilancia Anti-Trampa</p>
       <div class="big"><span>${conSalidas}</span></div>
-      <p class="muted"><b>${bloqueadosList.length}</b> bloqueados esperando su decisión</p>
+      <p class="muted"><b>${bloqueadosList.length}</b> bloqueados esperando su decisión${conInterrupciones ? ` · <b style="color:#e6a700">${conInterrupciones}</b> con interrupciones` : ''}</p>
+    </article>
+    <article class="card lamp" style="--c:${badBrowsers ? 'var(--crimson)' : 'var(--cyan)'}">
+      <p class="mono">Navegadores</p>
+      <div class="big"><span>${okBrowsers}<small>/${withBrowser.length}</small></span></div>
+      <p class="muted bo-browser-summary">${okBrowsers} en Safari/Chrome · <b class="${badBrowsers ? 'is-bad' : ''}">${badBrowsers} ${badBrowsers === 1 ? 'navegador no permitido' : 'navegadores no permitidos'}</b></p>
     </article>
   </div>
 
@@ -304,7 +355,6 @@ export function render() {
         <tbody>
           ${rows.map((r) => {
             const pct = r.qTotal ? Math.round((r.answered / r.qTotal) * 100) : 0;
-            const lastStrike = r.strikeLog[0];
             return `
             <tr class="${r.locked ? 'is-locked-row' : ''}">
               <td class="ads-name">
@@ -312,6 +362,7 @@ export function render() {
                 <div>
                   <b>${esc(r.name)}</b>
                   <small class="mono muted" style="display:block;font-size:10.5px">${esc(r.tema)}</small>
+                  ${r.hasJoined ? browserChipHTML(r) : ''}
                 </div>
               </td>
               <td data-label="Estado">${stateBadgeHTML(r)}</td>
@@ -322,13 +373,7 @@ export function render() {
               <td data-label="Calificación">
                 ${r.scorePct != null ? `<b class="bo-score-pill">${r.scorePct}%</b> <small class="muted">(${r.correct}/${r.total})</small>` : '<span class="muted">—</span>'}
               </td>
-              <td data-label="Anti-Trampa">
-                ${r.strikes === 0
-                  ? '<span class="mono" style="color:#3ccf8e">🟢 0 salidas (Limpio)</span>'
-                  : `<span class="mono" style="color:#ff4b66">⚠️ <b>${r.strikes}</b> ${r.strikes === 1 ? 'salida' : 'salidas'}</span>
-                     ${lastStrike ? `<small class="muted" style="display:block">Última: ${lastStrike.awaySec}s fuera en P${lastStrike.qNum}</small>` : ''}`
-                }
-              </td>
+              <td data-label="Anti-Trampa">${antiCheatHTML(r)}</td>
               <td data-label="Última señal" class="mono muted">${esc(r.lastSeenLabel)}</td>
               <td data-label="Acciones">
                 <div style="display:flex;gap:6px;flex-wrap:wrap">

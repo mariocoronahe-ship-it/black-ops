@@ -642,6 +642,8 @@ function loadLazyView(path, opts, seq) {
 }
 
 function route(opts = {}) {
+  // Con el examen activo no se dibuja ninguna otra vista detrás del bloqueo (salvo el panel docente)
+  if (document.body.classList.contains('is-exam-locked') && !(isAdscrito() && parse().path === 'adscrito')) return;
   remoteRenderPending = false; // cualquier redibujo deja la vista al día
   const { path, params, redirectHash } = parse();
   if (path === 'adscrito' && !isAdscrito() && !isOwner()) { navigate('#/inicio'); return; }
