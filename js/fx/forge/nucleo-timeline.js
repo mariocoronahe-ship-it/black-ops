@@ -1,7 +1,7 @@
 // Guion visual del «Núcleo de obsidiana» sobre los tiempos y voces de la adscrita (18.5 s):
 // saludo (2.5) · «Su servicio está en orden…» (5.6) · resumen + escaneo (10.2–13.2) · mensajes (13.4) · título (16.0).
 
-import { track, bump, smooth } from './forge-common.js?v=20261121t';
+import { track, bump, smooth } from './forge-common.js?v=20261121u';
 
 const rad = (d) => (d * Math.PI) / 180;
 

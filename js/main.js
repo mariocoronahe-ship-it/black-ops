@@ -1,23 +1,23 @@
-import { runAiHackSequence, mountInitialBootGate, playRoleIntro } from './fx/boot.js?v=20261121t';
-import { playIntro, prefetchIntro } from './fx/intro.js?v=20261121t';
-import { isVoiceOn, setVoiceOn, speak } from './fx/voice.js?v=20261121t';
-import { icon } from './icons.js?v=20261121t';
-import { INTRO_PENDING } from "./fx/boot.js?v=20261121t";
-import { markBody, isOwner, isAdscrito } from "./perfil.js?v=20261121t";
+import { runAiHackSequence, mountInitialBootGate, playRoleIntro } from './fx/boot.js?v=20261121u';
+import { playIntro, prefetchIntro } from './fx/intro.js?v=20261121u';
+import { isVoiceOn, setVoiceOn, speak } from './fx/voice.js?v=20261121u';
+import { icon } from './icons.js?v=20261121u';
+import { INTRO_PENDING } from "./fx/boot.js?v=20261121u";
+import { markBody, isOwner, isAdscrito } from "./perfil.js?v=20261121u";
 import * as S from './scroll.js';
 import { esc, toast } from './ui.js';
 import { createOrb } from './fx/orb.js?v=20261119d';
 import { createNeuralField } from './fx/synapse.js?v=20261119d';
 import { initCalotAI } from './ai.js?v=20261119d';
-import { PORTAL_MODULES, playModulePortal, playWingEntrance, playSubPortal, hasSubPortal } from './fx/portal.js?v=20261121t';
+import { PORTAL_MODULES, playModulePortal, playWingEntrance, playSubPortal, hasSubPortal } from './fx/portal.js?v=20261121u';
 
 let lastSubScene = null;
-import { AMBIENT_MODES, SFX_PACKS, getAudioState, setAmbient, setSfxPack, setMuted, setMusicVol, setFxVol, toggleMusic, isMusicPlaying, onAudioChange, playUiSfx } from './fx/audio.js?v=20261121t';
-import { store, loadStoreData } from './store.js?v=20261121t';
-import { initSync, onStatus, getCode, createCode, linkCode, unlink, syncNow } from './sync.js?v=20261121t';
-import * as portada from './views/portada.js?v=20261121t';
-import * as hgr72 from './views/hgr72.js?v=20261121t';
-import * as pendientes from './views/pendientes.js?v=20261121t';
+import { AMBIENT_MODES, SFX_PACKS, getAudioState, setAmbient, setSfxPack, setMuted, setMusicVol, setFxVol, toggleMusic, isMusicPlaying, onAudioChange, playUiSfx } from './fx/audio.js?v=20261121u';
+import { store, loadStoreData } from './store.js?v=20261121u';
+import { initSync, onStatus, getCode, createCode, linkCode, unlink, syncNow } from './sync.js?v=20261121u';
+import * as portada from './views/portada.js?v=20261121u';
+import * as hgr72 from './views/hgr72.js?v=20261121u';
+import * as pendientes from './views/pendientes.js?v=20261121u';
 
 const VIEWS = {
   '': portada,
@@ -28,21 +28,21 @@ const VIEWS = {
 
 // Vistas con datos pesados: se importan al entrar por primera vez (misma URL que en el resto de importadores).
 const LAZY_VIEWS = {
-  resumenes: () => import('./views/resumenes.js?v=20261121t'),
-  inicio: () => import('./views/inicio.js?v=20261121t'),
-  aprende: () => import('./views/aprende.js?v=20261121t'),
-  repasa: () => import('./views/repasa.js?v=20261121t'),
-  puem: () => import('./views/puem.js?v=20261121t'),
-  recursos: () => import('./views/recursos.js?v=20261121t'),
-  juegos: () => import('./views/juegos.js?v=20261121t'),
-  stats: () => import('./views/stats.js?v=20261121t'),
-  adscrito: () => import('./views/adscrito.js?v=20261121t'),
-  biblioteca: () => import("./views/biblioteca.js?v=20261121t"),
-  ranking: () => import('./views/ranking.js?v=20261121t'),
+  resumenes: () => import('./views/resumenes.js?v=20261121u'),
+  inicio: () => import('./views/inicio.js?v=20261121u'),
+  aprende: () => import('./views/aprende.js?v=20261121u'),
+  repasa: () => import('./views/repasa.js?v=20261121u'),
+  puem: () => import('./views/puem.js?v=20261121u'),
+  recursos: () => import('./views/recursos.js?v=20261121u'),
+  juegos: () => import('./views/juegos.js?v=20261121u'),
+  stats: () => import('./views/stats.js?v=20261121u'),
+  adscrito: () => import('./views/adscrito.js?v=20261121u'),
+  biblioteca: () => import("./views/biblioteca.js?v=20261121u"),
+  ranking: () => import('./views/ranking.js?v=20261121u'),
 };
 const loadedViews = {};
 // Vistas que además necesitan los datos del store (questions, progreso por tema, casos).
-const STORE_DATA_VIEWS = new Set(['inicio', 'aprende', 'repasa', 'juegos', 'stats', 'adscrito']);
+const STORE_DATA_VIEWS = new Set(['inicio', 'aprende', 'repasa', 'juegos', 'stats']);
 const isView = (p) => Object.hasOwn(VIEWS, p) || Object.hasOwn(LAZY_VIEWS, p); // hasOwn: «constructor» o «__proto__» no son vistas
 
 const REDIRECT_MAP = {
@@ -202,7 +202,7 @@ async function openCmdPalette() {
   let TEMARIO_APRENDE = [];
   let CATALOGO_RECURSOS = [];
   try {
-    [{ TEMARIO_PUEM }, { TEMARIO_APRENDE }, { CATALOGO_RECURSOS }] = await Promise.all([import('./data/temario_puem.js?v=20261121t'), import('./data/temario_aprende.js?v=20261121t'), import('./data/catalogo_recursos.js?v=20261121t')]);
+    [{ TEMARIO_PUEM }, { TEMARIO_APRENDE }, { CATALOGO_RECURSOS }] = await Promise.all([import('./data/temario_puem.js?v=20261121u'), import('./data/temario_aprende.js?v=20261121u'), import('./data/catalogo_recursos.js?v=20261121u')]);
   } catch { /* sin conexión: solo secciones, resúmenes y juegos */ }
   const m = document.getElementById('modal');
   const items = [
@@ -278,7 +278,7 @@ function shell() {
   }
   document.querySelector('.hud').innerHTML = `
     <span class="hud-line top" aria-hidden="true"></span><span class="hud-line bottom" aria-hidden="true"></span><span class="hud-flare" aria-hidden="true"></span>
-    <a class="hud-brand" href="#/inicio" aria-label="Inicio de CALOT-OS"><img class="hud-logo-img" src="assets/calot-logo.png?v=20261121t" alt="CALOT-OS"><div class="hud-brand-txt"><span class="wordmark"><b>ca</b>lot<em class="os-pill">OS</em></span><small><span class="rol-res">Cirugía · R2</span><span class="rol-ads">Adscrito · Cirugía</span></small></div></a>
+    <a class="hud-brand" href="#/inicio" aria-label="Inicio de CALOT-OS"><img class="hud-logo-img" src="assets/calot-logo.png?v=20261121u" alt="CALOT-OS"><div class="hud-brand-txt"><span class="wordmark"><b>ca</b>lot<em class="os-pill">OS</em></span><small><span class="rol-res">Cirugía · R2</span><span class="rol-ads">Adscrito · Cirugía</span></small></div></a>
     <nav class="hud-nav" aria-label="Secciones">${STUDY_NAV.map(hudItem).join('<i class="hud-sep" aria-hidden="true"></i>')}<i class="hud-guardia-sep" aria-hidden="true"></i>${hudGuardiaItem(GUARDIA_NAV)}<i class="hud-sep is-adscrito-only" aria-hidden="true"></i><a class="hud-item is-adscrito-only" href="#/adscrito" data-to="adscrito">${icon('eye', 'ic3d')}<span>Monitoreo</span></a></nav>
     <div class="hud-right">${ligaBtn()}${themeBtn()}${audioBtn()}${cmdkBtn()}${syncBtn()}${orbBtn()}</div>`;
   const tab = (to) => navLink(NAV.find((n) => n.to === to));
@@ -289,11 +289,11 @@ function shell() {
   window.addEventListener('resize', placeFlare);
   wireMagneticHud();
   // Bandeja de retroalimentación (testers <-> Mario); la adscrita usa Mensajes en su Panel docente.
-  if (!isAdscrito()) import('./mensajes-ui.js?v=20261121t').then((m) => m.mountResidentMessages()).catch(() => {});
+  if (!isAdscrito()) import('./mensajes-ui.js?v=20261121u').then((m) => m.mountResidentMessages()).catch(() => {});
   // Monitor Black Ops de Examen R2 (pulso de exploración y bloqueo simultáneo cuando la Dra. Hernández lanza el examen)
-  import('./fx/exam-lockdown.js?v=20261121t').then((m) => m.initExamLockdownMonitor()).catch(() => {});
+  import('./fx/exam-lockdown.js?v=20261121u').then((m) => m.initExamLockdownMonitor()).catch(() => {});
   // Liga CALOT: cada tester publica sus métricas al abrir, al estudiar/jugar y cada 60 s; se marca la corona/líder en <body> y HUD.
-  import('./ranking.js?v=20261121t').then((m) => {
+  import('./ranking.js?v=20261121u').then((m) => {
     m.publishSoon(true);
     m.loadBoard().then(m.markCrown).catch(() => {});
     store.subscribe((_, origin) => { if (origin === 'local') m.publishSoon(); });
@@ -859,7 +859,7 @@ if (!document.body.classList.contains('is-landing')) {
     const target = isAdscrito() ? '#/adscrito' : '#/inicio';
     navigate(target);
     playRoleIntro(playIntro, !S.enabled);
-    import('./ranking.js?v=20261121t').then((m) => m.publishSoon(true)).catch(() => {});
+    import('./ranking.js?v=20261121u').then((m) => m.publishSoon(true)).catch(() => {});
   });
   // Tras cambiar de perfil la página se recarga: la intro de ese perfil corre aquí.
   if (sessionStorage.getItem(INTRO_PENDING)) {

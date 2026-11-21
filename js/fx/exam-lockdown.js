@@ -5,13 +5,13 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261121t';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121t';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121t';
+import { store, questions, loadStoreData } from '../store.js?v=20261121u';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121u';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121u';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121t';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121t';
-import { playCalotEvaluation, startWaitingTauntLoop } from './eval-cinematic.js?v=20261121t';
+import { playUiSfx } from './audio.js?v=20261121u';
+import { unlockPortalAudio } from './portal-audio.js?v=20261121u';
+import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121u';
 
 const ENDPOINT = '/api/examen';
 
@@ -86,7 +86,7 @@ async function buildQuestionPool(topic, count, seedStr) {
   if (!cachedPool) {
     let puemQs = [];
     try {
-      const m = await import('../data/puem_examenes.js?v=20261121t');
+      const m = await import('../data/puem_examenes.js?v=20261121u');
       puemQs = (m.PUEM_QUESTIONS || []).filter((q) => q.year === 'R2' || !q.year);
     } catch {}
     const storeQs = (questions() || []).map((q) => ({
@@ -273,7 +273,7 @@ async function launchLockdownOverlay(exam, initialMe) {
     <div class="bo-takeover-stage" data-bo-takeover>
       <div class="bo-takeover-badge mono">⚠️ PROTOCOLO BLACK OPS · INTERVENCIÓN DOCENTE</div>
       <div class="bo-takeover-eye">
-        <img src="assets/calot-hero.png?v=20261121t" alt="" width="112" height="112" />
+        <img src="assets/calot-hero.png?v=20261121u" alt="" width="112" height="112" />
       </div>
       <h1>BLOQUEO GENERAL <em>ACTIVADO</em></h1>
       <p class="bo-takeover-lead">La <b>Dra. Araceli Hernández Vargas</b> ha suspendido la navegación libre e iniciado el examen de <b>${esc(exam.topicLabel || 'Cirugía General R2')}</b>.</p>
@@ -621,7 +621,7 @@ async function launchLockdownOverlay(exam, initialMe) {
       takeoverStage.hidden = true;
       examStage.hidden = false;
       examRunning = true;
-      tauntLoop = startWaitingTauntLoop();
+      tauntLoop = startWaitingTaunts();
       renderQuestion();
       if (isLockedByCheat) renderCheatWarning(1);
 

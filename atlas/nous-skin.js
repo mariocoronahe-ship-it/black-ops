@@ -8,7 +8,7 @@
 
   var bar = document.createElement('div');
   bar.className = 'nous-bar';
-  bar.innerHTML = '<a class="nous-logo" href="../#/inicio" aria-label="CALOT-OS"><img src="../assets/calot-logo.png?v=20261121t" alt="" style="width:28px;height:28px;border-radius:7px;vertical-align:middle;margin-right:8px"><b class="s">ca</b>lot<small>OS · ATLAS 3D</small></a>' +
+  bar.innerHTML = '<a class="nous-logo" href="../#/inicio" aria-label="CALOT-OS"><img src="../assets/calot-logo.png?v=20261121u" alt="" style="width:28px;height:28px;border-radius:7px;vertical-align:middle;margin-right:8px"><b class="s">ca</b>lot<small>OS · ATLAS 3D</small></a>' +
     '<a class="nous-back" href="' + back + '">← Atlas</a>';
   document.body.insertBefore(bar, document.body.firstChild);
 
