@@ -1,5 +1,5 @@
-import { icon } from '../icons.js?v=20261121w';
-import { store, todayISO, daysUntil } from '../store.js?v=20261121w';
+import { icon } from '../icons.js?v=20261121x';
+import { store, todayISO, daysUntil } from '../store.js?v=20261121x';
 import { esc, modal, toast, fmtDate, placeSeg } from '../ui.js';
 import * as S from '../scroll.js';
 

@@ -5,13 +5,13 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261121w';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121w';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121w';
+import { store, questions, loadStoreData } from '../store.js?v=20261121x';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121x';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121x';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121w';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121w';
-import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121w';
+import { playUiSfx } from './audio.js?v=20261121x';
+import { unlockPortalAudio } from './portal-audio.js?v=20261121x';
+import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121x';
 
 const ENDPOINT = '/api/examen';
 
@@ -86,9 +86,9 @@ async function buildQuestionPool(topic, count, seedStr) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261121w'),
-        import('../data/juegos_drive_v1.js?v=20261121w'),
-        import('../data/juegos_drive_v2.js?v=20261121w'),
+        import('../data/juegos_argos.js?v=20261121x'),
+        import('../data/juegos_drive_v1.js?v=20261121x'),
+        import('../data/juegos_drive_v2.js?v=20261121x'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -157,9 +157,21 @@ export function initExamLockdownMonitor() {
   if (mounted) return;
   mounted = true;
 
+  const isOnAdscritoView = () => {
+    const h = (location.hash || '').replace(/^#\/?/, '').split('?')[0].toLowerCase();
+    return h === 'adscrito';
+  };
+
+  const effectiveResident = () => {
+    const p = perfil();
+    if (R2_RESIDENTS.some((r) => r.id === p.id)) return p;
+    return R2_RESIDENTS.find((r) => r.id === 'r2_mario') || R2_RESIDENTS[0];
+  };
+
   // Píldora flotante en modo exploración para que el R2 vea quién es o pueda cambiar de tarjeta antes del examen
   const ensureExplorePill = (examActive) => {
-    if (isAdscrito() || examActive || sessionStorage.getItem(BOOT_KEY) !== '1') {
+    const inGate = Boolean(document.getElementById('boot-gate')) || document.body.classList.contains('is-landing');
+    if (isOnAdscritoView() || examActive || inGate) {
       if (pillEl) pillEl.hidden = true;
       return;
     }
@@ -171,10 +183,15 @@ export function initExamLockdownMonitor() {
         if (e.target.closest('[data-bo-switch]')) {
           sessionStorage.removeItem(BOOT_KEY);
           sessionStorage.removeItem('calot:booted');
+          location.hash = '#/';
           location.reload();
           return;
         }
         if (e.target.closest('[data-bo-docente]')) {
+          if (isAdscrito()) {
+            location.hash = '#/adscrito';
+            return;
+          }
           const code = window.prompt('Clave de Coordinación Docente (Dra. Hernández):', '');
           if (!code) return;
           const prof = profileByCode(code);
@@ -183,7 +200,6 @@ export function initExamLockdownMonitor() {
             return;
           }
           setPerfil(prof.id);
-          try { localStorage.setItem(ROLE_KEY, 'adscrito'); } catch {}
           sessionStorage.setItem(BOOT_KEY, '1');
           markBody();
           location.hash = '#/adscrito';
@@ -191,7 +207,7 @@ export function initExamLockdownMonitor() {
         }
       });
     }
-    const p = perfil();
+    const p = effectiveResident();
     pillEl.hidden = false;
     pillEl.innerHTML = `
       <span class="bo-pill-dot"></span>
@@ -203,14 +219,19 @@ export function initExamLockdownMonitor() {
 
   const poll = async () => {
     try {
-      if (sessionStorage.getItem(BOOT_KEY) !== '1') return;
-      if (isAdscrito()) {
-        ensureExplorePill(false);
+      const inGate = Boolean(document.getElementById('boot-gate')) || document.body.classList.contains('is-landing');
+      if (inGate) {
+        if (pillEl) pillEl.hidden = true;
         return;
       }
-      const p = perfil();
-      if (!R2_RESIDENTS.some((r) => r.id === p.id)) return;
+      // Si está dentro de la consola docente (#/adscrito), no se bloquea la consola en sí
+      if (isOnAdscritoView() && isAdscrito()) {
+        ensureExplorePill(false);
+        if (lockdownRoot) closeLockdownOverlay();
+        return;
+      }
 
+      const p = effectiveResident();
       const res = await apiPost({
         action: 'heartbeat',
         id: p.id,
@@ -224,12 +245,11 @@ export function initExamLockdownMonitor() {
       if (exam?.active && me?.state !== 'entregado') {
         if (activeSessionId !== exam.sessionId || !lockdownRoot) {
           activeSessionId = exam.sessionId;
-          launchLockdownOverlay(exam, me);
+          launchLockdownOverlay(exam, me, p);
         } else if (lockdownRoot && typeof lockdownRoot._syncRemoteMe === 'function') {
           lockdownRoot._syncRemoteMe(exam, me);
         }
       } else if (!exam?.active && lockdownRoot && !lockdownRoot.dataset.submitting) {
-        // La Dra. Hernández cerró o reabrió la sala
         closeLockdownOverlay();
         if (exam?.ended) {
           toast('La Dra. Hernández finalizó la sesión del examen.');
@@ -240,9 +260,9 @@ export function initExamLockdownMonitor() {
     }
   };
 
-  setInterval(poll, 3200);
-  window.addEventListener('hashchange', () => setTimeout(poll, 200));
-  setTimeout(poll, 600);
+  setInterval(poll, 2200);
+  window.addEventListener('hashchange', () => setTimeout(poll, 80));
+  setTimeout(poll, 300);
 }
 
 function closeLockdownOverlay() {
@@ -253,12 +273,13 @@ function closeLockdownOverlay() {
   document.body.classList.remove('is-exam-locked');
 }
 
-async function launchLockdownOverlay(exam, initialMe) {
+async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   closeLockdownOverlay();
   unlockPortalAudio();
   document.body.classList.add('is-exam-locked');
 
-  const p = perfil();
+  const p = residentProfile || perfil();
+  const canReturnToDocente = isAdscrito();
   const root = document.createElement('div');
   root.id = 'bo-lockdown-root';
   root.className = 'bo-lockdown is-takeover';
@@ -280,10 +301,11 @@ async function launchLockdownOverlay(exam, initialMe) {
 
   root.innerHTML = `
     <canvas class="bo-takeover-canvas" aria-hidden="true"></canvas>
+    ${canReturnToDocente ? `<button type="button" class="btn btn-sm btn-ghost mono" data-bo-back-docente style="position:fixed;top:14px;right:16px;z-index:999;border-color:rgba(255,90,110,.5)">← Volver a Consola Dra. Hernández</button>` : ''}
     <div class="bo-takeover-stage" data-bo-takeover>
       <div class="bo-takeover-badge mono">⚠️ PROTOCOLO BLACK OPS · INTERVENCIÓN DOCENTE</div>
       <div class="bo-takeover-eye">
-        <img src="assets/calot-hero.png?v=20261121w" alt="" width="112" height="112" />
+        <img src="assets/calot-hero.png?v=20261121x" alt="" width="112" height="112" />
       </div>
       <h1>BLOQUEO GENERAL <em>ACTIVADO</em></h1>
       <p class="bo-takeover-lead">La <b>Dra. Araceli Hernández Vargas</b> ha suspendido la navegación libre e iniciado el examen de <b>${esc(exam.topicLabel || 'Cirugía General R2')}</b>.</p>
@@ -574,6 +596,12 @@ async function launchLockdownOverlay(exam, initialMe) {
   };
 
   root.addEventListener('click', (e) => {
+    if (e.target.closest('[data-bo-back-docente]')) {
+      e.preventDefault();
+      closeLockdownOverlay();
+      location.hash = '#/adscrito';
+      return;
+    }
     const ack = e.target.closest('[data-bo-cheat-ack]');
     if (ack && !isLockedByCheat) {
       cheatModal.hidden = true;

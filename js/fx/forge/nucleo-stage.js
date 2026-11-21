@@ -1,9 +1,9 @@
 // «Núcleo de obsidiana» (intro de la adscrita): 80 fragmentos de cristal negro que se ensamblan alrededor de
 // un núcleo de luz roja. Las grietas entre fragmentos laten con la voz; el grupo de residentes llega como rayos.
 
-import { getVoiceLevel } from '../voice.js?v=20261121w';
-import { createForge, stageApi, rng, clamp } from './forge-common.js?v=20261121w';
-import { createNameMesh } from './nombre.js?v=20261121w';
+import { getVoiceLevel } from '../voice.js?v=20261121x';
+import { createForge, stageApi, rng, clamp } from './forge-common.js?v=20261121x';
+import { createNameMesh } from './nombre.js?v=20261121x';
 
 const CORE_VERT = `
   varying vec3 vN; varying vec3 vP; varying vec3 vV;

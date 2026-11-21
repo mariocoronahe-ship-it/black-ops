@@ -5,11 +5,11 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261121w';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121w';
+import { icon } from '../icons.js?v=20261121x';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121x';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261121w';
-import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121w';
+import { playUiSfx } from '../fx/audio.js?v=20261121x';
+import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121x';
 
 export const section = 'biblio';
 
@@ -270,8 +270,8 @@ export function render() {
           🔴 BLOQUEAR PLATAFORMA A TODOS E INICIAR EXAMEN AHORA
         </button>
       ` : `
-        <button type="button" class="btn btn-glow lg bo-launch-btn is-running" data-bo-act="launch">
-          🔄 RELANZAR EXAMEN CON NUEVA CONFIGURACIÓN
+        <button type="button" class="btn btn-glow lg bo-launch-btn is-running" data-bo-act="preview-lock">
+          👁 VER BLOQUEO Y EXAMEN EN VIVO (MODO RESIDENTE)
         </button>
         <button type="button" class="btn btn-metal lg" data-bo-act="reopen">
           🔓 SUSPENDER BLOQUEO Y DEJARLOS NAVEGAR
@@ -424,6 +424,11 @@ export function mount(root, rerender) {
     if (act === 'csv') {
       downloadCSV(buildRows());
       toast('Reporte CSV descargado');
+      return;
+    }
+
+    if (act === 'preview-lock') {
+      location.hash = '#/inicio';
       return;
     }
 

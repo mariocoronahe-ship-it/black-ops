@@ -49,6 +49,7 @@ export const TESTERS = R2_RESIDENTS.map((r) => r.id);
 export const TESTER_RESET_EPOCH = 'blackops:reset:20261121-v1';
 
 const getLS = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const getSS = (k) => { try { return sessionStorage.getItem(k); } catch { return null; } };
 
 export function wipeTestersLocalData() {
   try {
@@ -57,14 +58,20 @@ export function wipeTestersLocalData() {
 }
 
 export const perfilId = () => {
+  // Prioridad por pestaña (sessionStorage) para poder abrir un R2 en una pestaña y a la Dra. Hernández en otra del mismo navegador
+  const tabCur = getSS(PERFIL_KEY);
+  if (tabCur && PROFILES[tabCur]) return tabCur;
   const cur = getLS(PERFIL_KEY) || getLS('calot:perfil');
   if (cur && PROFILES[cur]) return cur;
-  if (getLS('calot:rol') === 'adscrito') return 'hernandez';
   return 'r2_mario';
 };
 export const perfil = () => PROFILES[perfilId()];
 export const isOwner = () => Boolean(perfil().owner);
-export const isAdscrito = () => perfil().role === 'adscrito' || getLS('calot:rol') === 'adscrito';
+export const isAdscrito = () => {
+  const tabRol = getSS('calot:rol');
+  if (tabRol) return tabRol === 'adscrito';
+  return perfil().role === 'adscrito';
+};
 export const canSee = (grade) => !grade || perfil().grades.includes(grade);
 export const topGrade = () => perfil().grades[perfil().grades.length - 1];
 export const allowedYear = (y) => (canSee(y) ? y : topGrade());
@@ -75,7 +82,15 @@ export function profileByCode(code) {
 }
 
 export function setPerfil(id) {
-  try { localStorage.setItem(PERFIL_KEY, id); } catch {}
+  const isAds = PROFILES[id]?.role === 'adscrito';
+  try {
+    sessionStorage.setItem(PERFIL_KEY, id);
+    sessionStorage.setItem('calot:rol', isAds ? 'adscrito' : 'residente');
+  } catch {}
+  try {
+    localStorage.setItem(PERFIL_KEY, id);
+    localStorage.setItem('calot:rol', isAds ? 'adscrito' : 'residente');
+  } catch {}
 }
 
 export function markBody() {
