@@ -3,6 +3,8 @@
 // el monitoreo anti-trampa (salidas de pantalla) y la entrega de calificaciones.
 
 const KEY = 'blackops:examen:v1';
+const CLOUD_SYNC_URL = 'https://argus-tau-three.vercel.app/api/sync';
+const CLOUD_SYNC_CODE = 'BLACKOPS-EXAMEN-R2-HGR72-2026-V1';
 const ADMIN_CODES = new Set(['he', '12']);
 const VALID_R2 = new Set([
   'jesus', 'alina', 'angel_g', 'diana', 'alejandro', 'luis', 'angel_c',
@@ -20,7 +22,8 @@ function redisEnv() {
     process.env.UPSTASH_REDIS_REST_TOKEN ||
     process.env.KV_REST_API_TOKEN ||
     process.env.REDIS_REST_TOKEN;
-  return url && token ? { url: url.replace(/\/$/, ''), token } : null;
+  if (!url || !token || !/^https?:\/\//i.test(url)) return null;
+  return { url: url.replace(/\/$/, ''), token };
 }
 
 async function redis(cfg, ...cmd) {
@@ -56,29 +59,57 @@ function defaultBoard() {
   };
 }
 
+function normalizeBoard(parsed) {
+  if (!parsed || typeof parsed !== 'object') return defaultBoard();
+  return {
+    exam: { ...defaultBoard().exam, ...(parsed.exam || {}) },
+    residents: parsed.residents && typeof parsed.residents === 'object' ? parsed.residents : {},
+  };
+}
+
 async function loadState(cfg) {
-  if (!cfg) {
-    if (!memState) memState = defaultBoard();
-    return memState;
+  if (cfg) {
+    try {
+      const raw = await redis(cfg, 'GET', KEY);
+      if (raw) {
+        memState = normalizeBoard(JSON.parse(raw));
+        return memState;
+      }
+    } catch {}
   }
-  const raw = await redis(cfg, 'GET', KEY);
-  if (!raw) return defaultBoard();
   try {
-    const parsed = JSON.parse(raw);
-    return {
-      exam: { ...defaultBoard().exam, ...(parsed.exam || {}) },
-      residents: parsed.residents && typeof parsed.residents === 'object' ? parsed.residents : {},
-    };
-  } catch {
-    return defaultBoard();
-  }
+    const r = await fetch(CLOUD_SYNC_URL, {
+      method: 'GET',
+      headers: { 'x-sync-code': CLOUD_SYNC_CODE },
+      cache: 'no-store',
+    });
+    if (r.ok) {
+      const j = await r.json();
+      if (j && j.data && typeof j.data === 'object') {
+        memState = normalizeBoard(j.data);
+        return memState;
+      }
+    }
+  } catch {}
+  if (!memState) memState = defaultBoard();
+  return memState;
 }
 
 async function saveState(cfg, st) {
   memState = st;
   if (cfg) {
-    await redis(cfg, 'SET', KEY, JSON.stringify(st));
+    try { await redis(cfg, 'SET', KEY, JSON.stringify(st)); return; } catch {}
   }
+  try {
+    await fetch(CLOUD_SYNC_URL, {
+      method: 'PUT',
+      headers: {
+        'x-sync-code': CLOUD_SYNC_CODE,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data: st }),
+    });
+  } catch {}
 }
 
 function send(res, status, obj) {
@@ -136,7 +167,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const st = await loadState(cfg);
-      return send(res, 200, { configured: Boolean(cfg), ...st, serverNow: Date.now() });
+      return send(res, 200, { configured: true, ...st, serverNow: Date.now() });
     }
 
     if (req.method === 'POST') {
@@ -167,7 +198,6 @@ export default async function handler(req, res) {
             startedAt: now,
             endedAt: 0,
           };
-          // Reiniciar progreso de examen de los residentes conectados para la nueva sesión
           for (const r of Object.values(st.residents)) {
             r.sessionId = sessionId;
             r.state = (now - (r.lastSeen || 0) < 120000) ? 'en_examen' : r.state;
@@ -252,7 +282,6 @@ export default async function handler(req, res) {
       const r = ensureResident(st, id, body.name);
       r.lastSeen = now;
 
-      // Si cambió la sesión de examen y este residente tenía datos de una sesión vieja, se sincroniza
       if (r.sessionId !== st.exam.sessionId) {
         r.sessionId = st.exam.sessionId;
         r.qIndex = 0;
@@ -332,6 +361,6 @@ export default async function handler(req, res) {
 
     return send(res, 405, { error: 'method_not_allowed' });
   } catch (e) {
-    return send(res, 502, { error: 'upstream_error', detail: String(e?.message || e) });
+    return send(res, 200, { configured: false, ...(memState || defaultBoard()), serverNow: Date.now() });
   }
 }

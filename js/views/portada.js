@@ -1,13 +1,10 @@
 /* ==========================================================================
-   CALOT-OS · Vista Portada (4d Arranque del Sistema)
-   Mantiene la portada viva al entrar en #/ o #/portada y permite entrar al
-   quirófano con clic en el CTA o presionando Enter.
+   CALOT-OS · Black Ops · Vista Portada (Selector de Tarjetas R2 + Docente)
    ========================================================================== */
 
 import * as S from '../scroll.js';
-import { renderBootPortadaHTML, wireBootPortada, playRoleIntro } from '../fx/boot.js?v=20261121s';
-import { playIntro, prefetchIntro } from '../fx/intro.js?v=20261121s';
-import { isAdscrito } from '../perfil.js?v=20261121s';
+import { renderBootPortadaHTML, wireBootPortada, playRoleIntro } from '../fx/boot.js?v=20261121t';
+import { isAdscrito } from '../perfil.js?v=20261121t';
 
 export const section = 'portada';
 
@@ -16,12 +13,14 @@ export function render() {
 }
 
 export function mount(root) {
-  prefetchIntro();
   const cleanup = wireBootPortada(root, () => {
-    // Al entrar desde la portada siempre corre la intro de 30 s (se puede saltar con Esc).
-    playRoleIntro(playIntro, !S.enabled);
-    if (location.hash === '#/inicio' || location.hash === '#/adscrito') return;
-    location.hash = isAdscrito() ? '#/adscrito' : '#/inicio';
+    playRoleIntro();
+    const target = isAdscrito() ? '#/adscrito' : '#/inicio';
+    if (location.hash !== target) {
+      location.hash = target;
+    } else {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    }
   });
   S.onCleanup(cleanup);
 }

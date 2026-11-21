@@ -1,6 +1,7 @@
 // Perfiles de Black Ops · Generación R2 Cirugía General HGR 72 + Coordinación (Dra. Hernández / Dr. Mario)
 
 export const PERFIL_KEY = 'blackops:perfil';
+export const BOOT_KEY = 'blackops:booted:v4';
 const ALL = ['R1', 'R2', 'R3', 'R4'];
 
 export const R2_RESIDENTS = [

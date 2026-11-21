@@ -14,7 +14,8 @@ const SEC_KEYS = ['inicio', 'aprende', 'repasa', 'recursos', 'juegos', 'stats', 
 function redisConfig() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  return url && token ? { url: url.replace(/\/$/, ''), token } : null;
+  if (!url || !token || !/^https?:\/\//i.test(url)) return null;
+  return { url: url.replace(/\/$/, ''), token };
 }
 
 async function redis(cfg, command) {

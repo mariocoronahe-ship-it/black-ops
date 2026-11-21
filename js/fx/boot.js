@@ -4,13 +4,13 @@
    y entra directo a navegar por CALOT-OS mientras la Dra. Hernández activa el examen.
    ========================================================================== */
 
-import { store, questions, todayISO, loadStoreData } from '../store.js?v=20261121s';
+import { store, questions, todayISO, loadStoreData } from '../store.js?v=20261121t';
 import { esc } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121s';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121s';
-import { R2_RESIDENTS, profileByCode, setPerfil, perfilId, perfil, isAdscrito, markBody } from '../perfil.js?v=20261121s';
+import { playUiSfx } from './audio.js?v=20261121t';
+import { unlockPortalAudio } from './portal-audio.js?v=20261121t';
+import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody } from '../perfil.js?v=20261121t';
 
-export const BOOT_KEY = 'blackops:booted:v3';
+export const BOOT_KEY = 'blackops:booted:v4';
 export const ROLE_KEY = 'calot:rol';
 export const INTRO_PENDING = 'calot:intro-pendiente';
 const setLS = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
@@ -22,8 +22,8 @@ const dueLabel = (n) => `${n} ${n === 1 ? 'pendiente' : 'pendientes'}`;
 
 export function loadBootData() {
   return Promise.all([
-    import('../data/temario_aprende.js?v=20261121s'),
-    import('../data/catalogo_recursos.js?v=20261121s'),
+    import('../data/temario_aprende.js?v=20261121t'),
+    import('../data/catalogo_recursos.js?v=20261121t'),
     loadStoreData(),
   ]).then(([t, c]) => {
     TEMARIO_APRENDE = t.TEMARIO_APRENDE;
@@ -66,7 +66,7 @@ export function renderPulsingCoreHTML({ isOrbit = false } = {}) {
       <span class="boot-sweep"></span>
       <span class="boot-orbit"><i></i></span>
       <span class="boot-orb">
-        <img src="assets/calot-hero.png?v=20261121s" alt="" width="96" height="96" decoding="async" />
+        <img src="assets/calot-hero.png?v=20261121t" alt="" width="96" height="96" decoding="async" />
         <svg class="boot-ecg" viewBox="0 0 120 32" preserveAspectRatio="none">
           <path class="boot-ecg-base" d="M0 16 H32 L40 16 L46 6 L53 26 L60 4 L67 22 L73 16 H120" />
           <path class="boot-ecg-pulse" d="M0 16 H32 L40 16 L46 6 L53 26 L60 4 L67 22 L73 16 H120" />
@@ -88,7 +88,7 @@ export function renderBootPortadaHTML() {
           <div class="r2-roster-brand">
             <div class="login-eye is-compact" aria-hidden="true">
               <span class="login-ring is-a"></span><span class="login-ring is-b"></span><span class="login-scan"></span>
-              <img src="assets/calot-hero.png?v=20261121s" alt="" width="88" height="88" decoding="async" />
+              <img src="assets/calot-hero.png?v=20261121t" alt="" width="88" height="88" decoding="async" />
             </div>
             <div>
               <p class="login-kicker t-mono"><span class="login-lock" aria-hidden="true"></span>HGR 72 · CIRUGÍA GENERAL · GENERACIÓN R2</p>
@@ -98,12 +98,10 @@ export function renderBootPortadaHTML() {
           </div>
 
           <div class="r2-docente-box">
-            <button type="button" class="btn btn-sm btn-ghost r2-docente-toggle t-mono" data-docente-toggle>
-              <span>Coordinación · Dra. Hernández</span>
-            </button>
-            <form class="r2-docente-form" data-boot-login autocomplete="off" novalidate hidden>
-              <input name="c" type="password" class="input is-sm t-mono" placeholder="Clave docente (HE)" autocomplete="off" autocapitalize="off" />
-              <button type="submit" class="btn btn-sm btn-glow">Control →</button>
+            <span class="t-mono" style="font-size:10.5px;letter-spacing:0.12em;color:#ff6b81">COORDINACIÓN · DRA. HERNÁNDEZ</span>
+            <form class="r2-docente-form" data-boot-login autocomplete="off" novalidate>
+              <input name="c" type="password" class="input is-sm t-mono" placeholder="Clave docente (HE)" aria-label="Clave docente" autocomplete="off" autocapitalize="off" />
+              <button type="submit" class="btn btn-sm btn-glow">Panel Control →</button>
             </form>
             <p class="boot-login-msg t-mono" data-boot-msg aria-live="polite"></p>
           </div>
@@ -157,7 +155,7 @@ export function wireBootPortada(container, onEnter) {
 
     const screen = container.querySelector('.boot-screen');
     screen?.classList.add('is-leaving');
-    timerId = window.setTimeout(go, 160);
+    timerId = window.setTimeout(go, 120);
   };
 
   const enterAsResident = (r2Id, cardEl) => {
@@ -187,7 +185,7 @@ export function wireBootPortada(container, onEnter) {
     unlockPortalAudio();
     if (entered || !form) return;
     const code = form.elements.c.value.trim();
-    if (!code) { say('> ingresa clave docente', 'is-error'); return; }
+    if (!code) { say('> ingresa clave docente (HE)', 'is-error'); return; }
     const prof = profileByCode(code);
     if (!prof || prof.role !== 'adscrito') {
       say('> clave inválida (usa HE)', 'is-error');
@@ -198,7 +196,7 @@ export function wireBootPortada(container, onEnter) {
     markBody();
     try { store.reloadProfile?.(); } catch {}
     playUiSfx('click');
-    say(`> acceso control · ${prof.title}`, 'is-ok');
+    say(`> acceso concedido · ${prof.title}`, 'is-ok');
     nextHash = '#/adscrito';
     triggerEnter();
   };
@@ -208,14 +206,6 @@ export function wireBootPortada(container, onEnter) {
     if (r2Btn) {
       e.preventDefault();
       enterAsResident(r2Btn.dataset.r2Pick, r2Btn);
-      return;
-    }
-    const docBtn = e.target.closest('[data-docente-toggle]');
-    if (docBtn && form) {
-      e.preventDefault();
-      unlockPortalAudio();
-      form.hidden = !form.hidden;
-      if (!form.hidden) setTimeout(() => form.elements.c?.focus(), 60);
       return;
     }
     const enterBtn = e.target.closest('[data-boot-enter]');
@@ -261,7 +251,7 @@ export function mountInitialBootGate(onEnterApp) {
       gate.remove();
       document.body.style.overflow = prevOverflow;
       onEnterApp?.();
-    }, 180);
+    }, 140);
   };
 
   cleanupWire = wireBootPortada(gate, finishGate);
@@ -274,7 +264,8 @@ export function mountInitialBootGate(onEnterApp) {
   };
 }
 
-/** Al elegir su tarjeta R2 entran directo a navegar en la aplicación con un saludo breve de voz. */
+/** En Black Ops entran directo a navegar o al panel de control sin intro de 60 s que estorbe. */
 export function playRoleIntro() {
-  import('./voice.js?v=20261121s').then((m) => m.voiceWelcome?.(0.35)).catch(() => {});
+  if (isAdscrito()) return;
+  import('./voice.js?v=20261121t').then((m) => m.voiceWelcome?.(0.35)).catch(() => {});
 }

@@ -2,11 +2,11 @@
 // Secuencia: emblema que se dibuja en la oscuridad → boom y zoom a través del emblema →
 // título que cae letra por letra → cuenta regresiva gigante → estallido y apertura.
 
-import { getEngine, isPortalAudioMuted } from './portal-audio.js?v=20261121s';
-import { sceneFor, drawWaves } from './scenes.js?v=20261121s';
-import { startSceneScore } from './scene-audio.js?v=20261121s';
-import { warmSfx } from './sfx-bank.js?v=20261121s';
-import { voiceForScene } from './voice.js?v=20261121s';
+import { getEngine, isPortalAudioMuted } from './portal-audio.js?v=20261121t';
+import { sceneFor, drawWaves } from './scenes.js?v=20261121t';
+import { startSceneScore } from './scene-audio.js?v=20261121t';
+import { warmSfx } from './sfx-bank.js?v=20261121t';
+import { voiceForScene } from './voice.js?v=20261121t';
 
 export const PORTAL_MODULES = new Set(['juegos', 'recursos', 'stats', 'resumenes', 'repasa', 'hgr72']);
 
