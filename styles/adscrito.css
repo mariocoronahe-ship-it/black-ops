@@ -557,3 +557,516 @@ body[data-rol="adscrito"] .is-residente-only { display: none !important; }
   padding-top: 6px;
   border-top: 1px solid rgba(var(--ink-rgb), 0.08);
 }
+
+/* ==========================================================================
+   BLACK OPS · Selector de Tarjetas R2 + Bloqueo Simultáneo + Examen Anti-Trampa
+   ========================================================================== */
+.boot-screen.is-r2-roster {
+  overflow-y: auto;
+  align-items: start;
+  padding: clamp(18px, 3.5vw, 44px) clamp(14px, 3vw, 40px) 48px;
+}
+.r2-roster-shell {
+  position: relative;
+  z-index: 2;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
+.r2-roster-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 22px;
+  border-radius: 20px;
+  background: rgba(14, 12, 16, 0.78);
+  border: 1px solid rgba(var(--crimson-rgb), 0.32);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.85);
+}
+.r2-roster-brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.login-eye.is-compact {
+  width: 78px;
+  height: 78px;
+  flex: none;
+}
+.login-eye.is-compact img {
+  width: 68px;
+  height: 68px;
+}
+.r2-roster-brand .login-word {
+  font-size: clamp(26px, 3.2vw, 38px);
+  margin: 2px 0;
+}
+.r2-roster-brand .login-slogan {
+  margin: 0;
+  font-size: 0.88rem;
+  opacity: 0.78;
+}
+.r2-docente-box {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+.r2-docente-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.r2-docente-form[hidden] {
+  display: none !important;
+}
+.r2-docente-form .input {
+  width: 170px;
+  padding: 7px 11px;
+  font-size: 12.5px;
+}
+
+.r2-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 13px;
+}
+.r2-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 13px;
+  text-align: left;
+  padding: 15px 16px;
+  border-radius: 16px;
+  background: linear-gradient(155deg, rgba(22, 16, 22, 0.86), rgba(11, 9, 13, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  color: #f4eff0;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.r2-card:hover,
+.r2-card:focus-visible,
+.r2-card.is-picked {
+  transform: translateY(-3px);
+  border-color: rgba(255, 58, 82, 0.75);
+  background: linear-gradient(155deg, rgba(46, 14, 24, 0.92), rgba(16, 10, 14, 0.95));
+  box-shadow: 0 14px 34px -14px rgba(255, 42, 72, 0.65);
+  outline: none;
+}
+.r2-card-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: #ff647c;
+  background: rgba(255, 48, 76, 0.14);
+  border: 1px solid rgba(255, 58, 82, 0.38);
+}
+.r2-card-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.r2-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.r2-card-top strong {
+  font-size: 1rem;
+  color: #fff;
+}
+.r2-card-badge {
+  font-style: normal;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.72);
+}
+.r2-card-sub {
+  font-size: 11.5px;
+  color: rgba(240, 232, 235, 0.62);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.r2-card-arrow {
+  font-size: 18px;
+  color: rgba(255, 90, 112, 0.8);
+  transition: transform 0.2s ease;
+}
+.r2-card:hover .r2-card-arrow {
+  transform: translateX(4px);
+}
+
+/* Píldora flotante en modo exploración */
+.bo-explore-pill {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 95;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: #f3edf0;
+  background: rgba(12, 11, 15, 0.88);
+  border: 1px solid rgba(60, 207, 142, 0.45);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+}
+.bo-explore-pill[hidden] {
+  display: none !important;
+}
+.bo-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3ccf8e;
+  box-shadow: 0 0 10px #3ccf8e;
+}
+.bo-pill-btn {
+  padding: 3px 9px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  .bo-explore-pill {
+    bottom: 74px;
+    left: 10px;
+    right: 10px;
+    justify-content: space-between;
+  }
+}
+
+/* Consola Docente Black Ops */
+.bo-control-card {
+  padding: 20px 22px;
+  display: grid;
+  gap: 18px;
+  border: 1px solid rgba(var(--crimson-rgb), 0.38);
+}
+.bo-control-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bo-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+.bo-field {
+  display: grid;
+  gap: 6px;
+}
+.bo-field span {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: var(--c-muted);
+}
+.bo-launch-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 6px;
+}
+.bo-launch-btn {
+  flex: 1 1 320px;
+  justify-content: center;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 15px 22px;
+}
+.is-locked-row {
+  background: rgba(255, 38, 68, 0.1) !important;
+}
+.bo-score-pill {
+  color: #3ccf8e;
+  font-size: 1.02rem;
+}
+
+/* Pantalla de Bloqueo Simultáneo y Examen Blindado */
+body.is-exam-locked {
+  overflow: hidden !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+body.is-exam-locked .hud,
+body.is-exam-locked .tabbar,
+body.is-exam-locked .fab,
+body.is-exam-locked #fab-menu,
+body.is-exam-locked .bo-explore-pill {
+  display: none !important;
+}
+.bo-lockdown {
+  position: fixed;
+  inset: 0;
+  z-index: 980;
+  background: #040305;
+  color: #f5eff1;
+  overflow-y: auto;
+  display: grid;
+}
+.bo-takeover-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.48;
+}
+.bo-takeover-stage {
+  position: relative;
+  z-index: 2;
+  margin: auto;
+  max-width: 680px;
+  padding: 32px 24px;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+.bo-takeover-stage[hidden],
+.bo-exam-stage[hidden],
+.bo-cheat-modal[hidden] {
+  display: none !important;
+}
+.bo-takeover-badge {
+  padding: 6px 14px;
+  border-radius: 99px;
+  background: rgba(255, 38, 68, 0.2);
+  border: 1px solid rgba(255, 58, 82, 0.7);
+  color: #ff6880;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+}
+.bo-takeover-eye img {
+  border-radius: 50%;
+  box-shadow: 0 0 60px rgba(255, 30, 60, 0.85);
+}
+.bo-takeover-stage h1 {
+  margin: 0;
+  font-size: clamp(28px, 4.5vw, 48px);
+  letter-spacing: 0.04em;
+}
+.bo-takeover-stage h1 em {
+  color: #ff3a52;
+  font-style: normal;
+}
+.bo-takeover-lead {
+  margin: 0;
+  font-size: 1.04rem;
+  line-height: 1.55;
+  color: rgba(245, 239, 241, 0.84);
+}
+.bo-takeover-rules {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(20, 10, 15, 0.82);
+  border: 1px solid rgba(255, 58, 82, 0.35);
+  text-align: left;
+}
+.bo-takeover-rules > div {
+  display: grid;
+  gap: 3px;
+}
+.bo-takeover-rules span {
+  font-size: 10px;
+  color: rgba(255, 130, 148, 0.8);
+}
+.bo-takeover-rules b {
+  font-size: 12.5px;
+}
+.bo-takeover-count {
+  margin-top: 6px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: #ff3a52;
+}
+
+/* Sala de Examen Blindada */
+.bo-exam-stage {
+  position: relative;
+  z-index: 2;
+  width: min(860px, 100%);
+  margin: 0 auto;
+  padding: clamp(18px, 3.5vw, 36px) 16px 48px;
+  align-self: start;
+}
+.bo-exam-shell {
+  display: grid;
+  gap: 16px;
+}
+.bo-exam-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(18, 13, 18, 0.9);
+  border: 1px solid rgba(255, 58, 82, 0.32);
+}
+.bo-exam-kicker {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: #ff647c;
+  margin-bottom: 3px;
+}
+.bo-exam-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.bo-exam-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bo-exam-strikes {
+  padding: 5px 10px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.bo-exam-strikes.is-warn {
+  background: rgba(255, 38, 68, 0.24);
+  color: #ff7088;
+  border: 1px solid rgba(255, 58, 82, 0.55);
+}
+.bo-exam-timer {
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-weight: 700;
+  font-size: 13px;
+  background: rgba(255, 42, 72, 0.18);
+  border: 1px solid rgba(255, 58, 82, 0.45);
+  color: #fff;
+}
+.bo-exam-progress {
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.bo-exam-progress i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff2a4b, #ff7a8e);
+  transition: width 0.3s ease;
+}
+.bo-question-card {
+  padding: clamp(20px, 3vw, 30px);
+  display: grid;
+  gap: 18px;
+  background: rgba(16, 13, 18, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.bo-question-stem {
+  margin: 0;
+  font-size: clamp(1rem, 1.35vw, 1.16rem);
+  line-height: 1.62;
+  color: #f7f2f4;
+}
+.bo-options-list {
+  display: grid;
+  gap: 10px;
+}
+.bo-opt-btn {
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f3edf0;
+  font: 500 0.96rem/1.5 var(--font-sans, system-ui);
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+}
+.bo-opt-btn:hover,
+.bo-opt-btn:focus-visible {
+  background: rgba(255, 48, 76, 0.15);
+  border-color: rgba(255, 68, 92, 0.65);
+  transform: translateX(3px);
+  outline: none;
+}
+.bo-exam-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.bo-done-card {
+  padding: 36px 26px;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+}
+
+/* Modal Anti-Trampa */
+.bo-cheat-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 995;
+  background: rgba(6, 2, 4, 0.92);
+  backdrop-filter: blur(12px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.bo-cheat-card {
+  max-width: 520px;
+  width: 100%;
+  padding: 28px 24px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(38, 10, 18, 0.96), rgba(14, 6, 10, 0.98));
+  border: 2px solid #ff3a52;
+  box-shadow: 0 0 60px -10px rgba(255, 34, 64, 0.75);
+  text-align: center;
+  display: grid;
+  gap: 12px;
+}
+.bo-cheat-tag {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: #ff6b80;
+}
+.bo-cheat-card h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.bo-cheat-pulse {
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 42, 72, 0.18);
+  color: #ff8296;
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+}

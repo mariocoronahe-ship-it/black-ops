@@ -1,46 +1,66 @@
-// Perfiles de acceso (fase de prueba). Es una puerta simulada: los códigos viven en el cliente.
-// Mario (dueño) ve todo y conserva sus datos; las testers tienen su propio almacén y no ven lo personal.
+// Perfiles de Black Ops · Generación R2 Cirugía General HGR 72 + Coordinación (Dra. Hernández / Dr. Mario)
 
-export const PERFIL_KEY = 'calot:perfil';
+export const PERFIL_KEY = 'blackops:perfil';
 const ALL = ['R1', 'R2', 'R3', 'R4'];
 
+export const R2_RESIDENTS = [
+  { id: 'jesus',     name: 'Dr. Jesús',           short: 'Jesús',           ini: 'JE', tema: 'Piel · Estómago · Recto' },
+  { id: 'alina',     name: 'Dra. Alina',          short: 'Alina',           ini: 'AL', tema: 'Oncología cutánea · Gástrico · Recto' },
+  { id: 'angel_g',   name: 'Dr. Ángel González',  short: 'Ángel González',  ini: 'AG', tema: 'Quemaduras · Delgado · Fístulas' },
+  { id: 'diana',     name: 'Dra. Diana',          short: 'Diana',           ini: 'DI', tema: 'Neoplasias · Delgado · Colon' },
+  { id: 'alejandro', name: 'Dr. Alejandro',       short: 'Alejandro',       ini: 'AJ', tema: 'Oncología · Estómago · Diverticular' },
+  { id: 'luis',      name: 'Dr. Luis',            short: 'Luis',            ini: 'LU', tema: 'Pared · Fístulas · Colitis' },
+  { id: 'angel_c',   name: 'Dr. Ángel Contreras', short: 'Ángel Contreras', ini: 'AC', tema: 'Hernias · Isquemia · C. difficile' },
+  { id: 'isahy',     name: 'Dr. Isahy',           short: 'Isahy',           ini: 'IS', tema: 'Hernias ventrales · Delgado · Colon' },
+  { id: 'ulises',    name: 'Dr. Ulises',          short: 'Ulises',          ini: 'UL', tema: 'Hernia inguinal · Esófago · Colon' },
+  { id: 'delia',     name: 'Dra. Delia',          short: 'Delia',           ini: 'DE', tema: 'Esófago · Delgado · Colon' },
+  { id: 'dulce',     name: 'Dra. Dulce',          short: 'Dulce',           ini: 'DU', tema: 'Motilidad · Acidopéptica · Estomas' },
+  { id: 'tiffany',   name: 'Dra. Tiffany',        short: 'Tiffany',         ini: 'TI', tema: 'ERGE · Úlcera péptica · Hemorroides' },
+  { id: 'marco',     name: 'Dr. Marco',           short: 'Marco',           ini: 'MC', tema: 'Divertículos · Adherencias · Colon' },
+  { id: 'r2_mario',  name: 'Dr. Mario',           short: 'Mario',           ini: 'MR', tema: 'Cáustica · Gástrico · Apendicitis · Recto' },
+];
+
 export const PROFILES = {
-  mario: { id: 'mario', code: '12', name: 'Mario', title: 'Dr. Mario', owner: true, role: 'residente', grades: ALL, ciclo: 'R2', voice: null },
-  chantal: { id: 'chantal', code: 'cha-b1', name: 'Dra. Chantal', title: 'Dra. Chantal', owner: false, role: 'residente', grades: ALL, ciclo: 'R2', voice: 'tester-chantal' },
-  areli: { id: 'areli', code: 'are-b1', name: 'Dra. Areli', title: 'Dra. Areli', owner: false, role: 'residente', grades: ALL, ciclo: 'R2', voice: 'tester-areli' },
-  daniela: { id: 'daniela', code: 'dan-b1', name: 'Dra. Daniela', title: 'Dra. Daniela', owner: false, role: 'residente', grades: ['R1', 'R2', 'R3'], ciclo: 'R2', voice: 'tester-daniela' },
-  hernandez: { id: 'hernandez', code: 'he', name: 'Dra. Hernández', title: 'Dra. Hernández', owner: false, role: 'adscrito', grades: ALL, ciclo: 'Adscrita', voice: null },
+  ...Object.fromEntries(
+    R2_RESIDENTS.map((r) => [
+      r.id,
+      {
+        id: r.id,
+        code: r.id,
+        name: r.name,
+        title: r.name,
+        short: r.short,
+        ini: r.ini,
+        tema: r.tema,
+        owner: false,
+        role: 'residente',
+        grades: ALL,
+        ciclo: 'R2',
+        voice: null,
+      },
+    ])
+  ),
+  mario: { id: 'mario', code: '12', name: 'Dr. Mario', title: 'Dr. Mario (Control)', owner: true, role: 'adscrito', grades: ALL, ciclo: 'R2', voice: null },
+  hernandez: { id: 'hernandez', code: 'he', name: 'Dra. Hernández', title: 'Dra. Araceli Hernández Vargas', owner: false, role: 'adscrito', grades: ALL, ciclo: 'Coordinadora R2', voice: null },
 };
-export const TESTERS = ['chantal', 'areli', 'daniela'];
-export const TESTER_RESET_EPOCH = 'calot:tester-reset:20261121-v3';
+
+export const TESTERS = R2_RESIDENTS.map((r) => r.id);
+export const TESTER_RESET_EPOCH = 'blackops:reset:20261121-v1';
 
 const getLS = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 
-/** Limpia datos locales y banderas de intro de las 3 testers para que entren desde cero con su intro completa. */
 export function wipeTestersLocalData() {
   try {
-    for (const id of TESTERS) {
-      localStorage.removeItem(`calot:v3:${id}`);
-      localStorage.removeItem(`calot:intro-vista:${id}`);
-      localStorage.removeItem(`calot:intro-vista:v2:${id}`);
-      localStorage.removeItem(`calot:ranking:snap:${id}`);
-      localStorage.removeItem(`calot:ranking:snap:v2:${id}`);
-    }
     localStorage.setItem(TESTER_RESET_EPOCH, '1');
   } catch {}
 }
 
-if (typeof localStorage !== 'undefined' && getLS(TESTER_RESET_EPOCH) !== '1') {
-  wipeTestersLocalData();
-}
-
-export const perfilId = () => (PROFILES[getLS(PERFIL_KEY)] ? getLS(PERFIL_KEY) : 'mario');
+export const perfilId = () => (PROFILES[getLS(PERFIL_KEY)] ? getLS(PERFIL_KEY) : 'r2_mario');
 export const perfil = () => PROFILES[perfilId()];
-export const isOwner = () => perfil().owner;
+export const isOwner = () => Boolean(perfil().owner);
 export const isAdscrito = () => perfil().role === 'adscrito';
 export const canSee = (grade) => !grade || perfil().grades.includes(grade);
 export const topGrade = () => perfil().grades[perfil().grades.length - 1];
-/** Año permitido más cercano: el pedido si se puede ver; si no, el más alto permitido. */
 export const allowedYear = (y) => (canSee(y) ? y : topGrade());
 
 export function profileByCode(code) {
@@ -52,7 +72,6 @@ export function setPerfil(id) {
   try { localStorage.setItem(PERFIL_KEY, id); } catch {}
 }
 
-/** Marca el perfil en <body> (para CSS: [data-owner="1"] / [data-owner="0"] y [data-rol="adscrito"]). */
 export function markBody() {
   if (typeof document === 'undefined' || !document.body) return;
   document.body.dataset.perfil = perfilId();

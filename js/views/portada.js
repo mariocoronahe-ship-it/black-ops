@@ -5,9 +5,9 @@
    ========================================================================== */
 
 import * as S from '../scroll.js';
-import { renderBootPortadaHTML, wireBootPortada, playRoleIntro } from '../fx/boot.js?v=20261121q';
-import { playIntro, prefetchIntro } from '../fx/intro.js?v=20261121q';
-import { isAdscrito } from '../perfil.js?v=20261121q';
+import { renderBootPortadaHTML, wireBootPortada, playRoleIntro } from '../fx/boot.js?v=20261121r';
+import { playIntro, prefetchIntro } from '../fx/intro.js?v=20261121r';
+import { isAdscrito } from '../perfil.js?v=20261121r';
 
 export const section = 'portada';
 

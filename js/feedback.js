@@ -1,7 +1,7 @@
 // Chat de retroalimentación: un canal por tester con Mario.
 // Con el servidor (Vercel + Upstash) viaja entre dispositivos por /api/mensajes;
 // sin servidor (p. ej. en local) se guarda en este navegador para probar el flujo.
-import { PROFILES, TESTERS, perfil } from './perfil.js?v=20261121q';
+import { PROFILES, TESTERS, perfil } from './perfil.js?v=20261121r';
 
 const ENDPOINT = 'api/mensajes';
 export const channelOf = (id) => `CALOT-FEEDBACK-${String(id).toUpperCase()}`;
