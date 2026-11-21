@@ -71,6 +71,14 @@ export const isAdscrito = () => {
   if (tabRol) return tabRol === 'adscrito';
   return perfil().role === 'adscrito';
 };
+/** Dispositivo o panel de la Dra. Hernández (consola, iframe incrustado): jamás reproduce audio. */
+export const isDocenteSilentDevice = () => {
+  try {
+    if (document.documentElement.classList.contains('is-embed')) return true;
+    if (/^#\/?adscrito/i.test(location.hash || '')) return true;
+  } catch {}
+  return perfilId() === 'hernandez';
+};
 export const canSee = (grade) => !grade || perfil().grades.includes(grade);
 export const topGrade = () => perfil().grades[perfil().grades.length - 1];
 export const allowedYear = (y) => (canSee(y) ? y : topGrade());

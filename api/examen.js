@@ -520,6 +520,8 @@ export default async function handler(req, res) {
           if (residents[tid]) {
             const d = derive(residents[tid], exam);
             exam.pardons = { ...(exam.pardons || {}), [tid]: d.strikes || 0 };
+            // Si ya entregó, la docente libera su «Sesión cerrada» y el residente vuelve a la app
+            if (d.state === 'entregado') exam.released = { ...(exam.released || {}), [tid]: now };
             await saveExam(cfg, exam);
           }
           return reply(exam, residents);

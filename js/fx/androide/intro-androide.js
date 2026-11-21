@@ -1,5 +1,5 @@
-import { CUE, TOTAL, REDUCED_TOTAL, BEEPS } from './android-timeline.js?v=20261122e';
-import { mountUi } from './android-ui.js?v=20261122e';
+import { CUE, TOTAL, REDUCED_TOTAL, BEEPS } from './android-timeline.js?v=20261122g';
+import { mountUi } from './android-ui.js?v=20261122g';
 
 export { CUE, TOTAL, REDUCED_TOTAL, BEEPS };
 
@@ -15,7 +15,7 @@ const loadThree = (vendorBase) => {
   return threeCache.get(url);
 };
 let stageModule = null;
-const loadStage = () => (stageModule ||= import('./android-stage.js?v=20261122e').catch((err) => { stageModule = null; throw err; }));
+const loadStage = () => (stageModule ||= import('./android-stage.js?v=20261122g').catch((err) => { stageModule = null; throw err; }));
 
 let webglOk = null;
 export function canRunAndroidIntro() {

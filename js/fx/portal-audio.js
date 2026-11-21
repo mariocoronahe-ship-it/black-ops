@@ -3,6 +3,7 @@
 // a -1 dBFS), reverb con pre-delay y reflexiones tempranas, ruido marrón, saturación cálida,
 // ducking de camas bajo golpes y voz, y la preferencia de silencio del usuario.
 
+import { isDocenteSilentDevice } from '../perfil.js?v=20261122g';
 const PORTAL_SFX_KEY = 'calot:portal-sfx';
 
 let sharedCtx = null;
@@ -233,6 +234,7 @@ let keepAliveOsc = null;
  * Mantiene el AudioContext vivo mientras cargan modelos 3D o fragmentos dinámicos.
  */
 export function unlockPortalAudio() {
+  if (isDocenteSilentDevice()) return null;
   try {
     if (typeof navigator !== 'undefined' && navigator.audioSession) {
       try { navigator.audioSession.type = 'playback'; } catch {}

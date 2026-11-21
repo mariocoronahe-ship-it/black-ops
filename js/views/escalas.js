@@ -1,4 +1,4 @@
-import { icon } from '../icons.js?v=20261122e';
+import { icon } from '../icons.js?v=20261122g';
 import { esc, placeSeg } from '../ui.js';
 import * as S from '../scroll.js';
 

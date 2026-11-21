@@ -5,13 +5,13 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261122e';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122e';
+import { icon } from '../icons.js?v=20261122g';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122g';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122e';
-import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122e';
-import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122e';
-import { dashboardHTML } from './adscrito-dashboard.js?v=20261122e';
+import { playUiSfx } from '../fx/audio.js?v=20261122g';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122g';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122g';
+import { dashboardHTML } from './adscrito-dashboard.js?v=20261122g';
 
 export const section = 'biblio';
 
@@ -394,6 +394,7 @@ function rosterCardHTML(r, ex, idx) {
         <div class="bo-rc-row">${antiCheatHTML(r)}</div>
         <div class="bo-rc-actions">
           ${r.locked ? `<button type="button" class="btn btn-sm btn-glow" data-bo-unlock="${esc(r.id)}">🔓 Desbloquear</button>` : ''}
+          ${r.state === 'entregado' && !ex.released?.[r.id] ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-unlock="${esc(r.id)}" data-bo-release>🔓 Liberar sesión cerrada</button>` : ''}
           ${r.hasJoined && r.state !== 'entregado' && ex.active ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-finish="${esc(r.id)}">⛔ Calificar así</button>` : ''}
           ${r.hasJoined && ex.source === 'custom' ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-results="${esc(r.id)}">${resultsOpenFor === r.id ? 'Ocultar respuestas' : '📋 Ver respuestas'}</button>` : ''}
         </div>
@@ -719,7 +720,7 @@ export function mount(root, rerender) {
       playUiSfx('click');
       const tid = unlockBtn.dataset.boUnlock;
       board = await adminExamAction('unlock_resident', { targetId: tid });
-      toast('Examen desbloqueado para el residente');
+      toast(unlockBtn.hasAttribute('data-bo-release') ? 'Sesión liberada: el residente vuelve a la app' : 'Examen desbloqueado para el residente');
       keep();
       return;
     }

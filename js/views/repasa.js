@@ -1,12 +1,12 @@
-import { icon } from '../icons.js?v=20261122e';
-import { store, questions, todayISO } from '../store.js?v=20261122e';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122e';
-import { HIGH_YIELD_BY_TOPIC as HY_BASE, PUEM_PEARL_CATEGORIES } from '../data/repaso_alto_rendimiento.js?v=20261122e';
-import { DRIVE_HIGH_YIELD } from '../data/temario_drive.js?v=20261122e';
+import { icon } from '../icons.js?v=20261122g';
+import { store, questions, todayISO } from '../store.js?v=20261122g';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122g';
+import { HIGH_YIELD_BY_TOPIC as HY_BASE, PUEM_PEARL_CATEGORIES } from '../data/repaso_alto_rendimiento.js?v=20261122g';
+import { DRIVE_HIGH_YIELD } from '../data/temario_drive.js?v=20261122g';
 
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122e';
-import { voiceReview, voiceForgot } from '../fx/voice.js?v=20261122e';
+import { playUiSfx } from '../fx/audio.js?v=20261122g';
+import { voiceReview, voiceForgot } from '../fx/voice.js?v=20261122g';
 import * as S from '../scroll.js';
 
 // Puntos de alto rendimiento: los citados de ARGOS-MED primero y, después, las perlas de los resúmenes de Drive por tema

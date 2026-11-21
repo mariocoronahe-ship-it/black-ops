@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261122e';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122e';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122e';
+import { store, questions, loadStoreData } from '../store.js?v=20261122g';
+import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122g';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122g';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122e';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122e';
-import { playCalotEvaluation } from './eval-cinematic.js?v=20261122e';
-import { detectCurrentBrowser } from './browser-check.js?v=20261122e';
+import { playUiSfx } from './audio.js?v=20261122g';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122g';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122g';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122g';
 
 const ENDPOINT = '/api/examen';
 
@@ -92,9 +92,9 @@ async function buildQuestionPool(topic, count, seedStr) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261122e'),
-        import('../data/juegos_drive_v1.js?v=20261122e'),
-        import('../data/juegos_drive_v2.js?v=20261122e'),
+        import('../data/juegos_argos.js?v=20261122g'),
+        import('../data/juegos_drive_v1.js?v=20261122g'),
+        import('../data/juegos_drive_v2.js?v=20261122g'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -181,13 +181,100 @@ const fmtSec = (s) => (s < 10 ? `${(Math.round(s * 10) / 10).toString()} s` : `$
 
 /** Mientras el examen está activo, ninguna otra vista puede cambiar el hash. */
 export function isExamLockActive() {
-  return Boolean(lockdownRoot || blockedRoot);
+  return Boolean(lockdownRoot || blockedRoot || closedRoot);
+}
+
+/* ------------------------------------------------------------------
+   Sesión cerrada permanente: tras entregar, el residente ya no regresa a la app.
+   Solo se libera si la docente reinicia, lanza otro examen o lo libera desde su panel.
+   ------------------------------------------------------------------ */
+const CLOSED_KEY = 'bo:exam-closed';
+let closedRoot = null;
+function readClosed() {
+  try { return JSON.parse(localStorage.getItem(CLOSED_KEY) || 'null'); } catch { return null; }
+}
+function writeClosed(data) {
+  try { localStorage.setItem(CLOSED_KEY, JSON.stringify(data)); } catch {}
+}
+function clearClosed() {
+  try { localStorage.removeItem(CLOSED_KEY); } catch {}
+}
+const closedFor = (id) => {
+  const f = readClosed();
+  return f && f.id === id ? f : null;
+};
+
+function showClosedScreen(f) {
+  if (!f) return;
+  if (closedRoot) return;
+  try { document.querySelector('.eval-overlay')?.remove(); } catch {}
+  closeLockdownOverlay();
+  closeBlockedScreen();
+  if (soundChipEl) soundChipEl.hidden = true;
+  if (pillEl) pillEl.hidden = true;
+  const at = new Date(Number(f.at) || Date.now());
+  const hora = at.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const fecha = at.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+  const root = document.createElement('div');
+  root.className = 'bo-closed';
+  root.setAttribute('role', 'alertdialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-label', 'Examen entregado · Sesión cerrada');
+  root.innerHTML = `
+    <div class="bo-closed-grid" aria-hidden="true"></div>
+    <div class="bo-closed-scan" aria-hidden="true"></div>
+    <div class="bo-closed-card">
+      <div class="bo-closed-seal" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><rect x="14" y="28" width="36" height="26" rx="5" fill="rgba(255,45,70,.14)" stroke="#ff2d46" stroke-width="2.5"/><path d="M22 28v-7a10 10 0 0 1 20 0v7" fill="none" stroke="#ffd2d9" stroke-width="3.5" stroke-linecap="round"/><circle cx="32" cy="40" r="3.4" fill="#ffd2d9"/><path d="M32 43v5" stroke="#ffd2d9" stroke-width="3" stroke-linecap="round"/></svg>
+      </div>
+      <p class="bo-closed-kicker mono">CALOT-OS · BLACK OPS · PROTOCOLO R2</p>
+      <h1 class="bo-closed-title">Examen entregado<span>Sesión cerrada</span></h1>
+      <div class="bo-closed-name">${esc(String(f.name || 'Residente R2').toUpperCase())}</div>
+      <div class="bo-closed-meta mono">
+        <div><span>ENTREGADO</span><b>${esc(hora)} h</b></div>
+        <div><span>FECHA</span><b>${esc(fecha)}</b></div>
+        ${f.topic ? `<div><span>EXAMEN</span><b>${esc(f.topic)}</b></div>` : ''}
+      </div>
+      <p class="bo-closed-msg">Tus respuestas quedaron <b>selladas y enviadas</b> a la Dra. Hernández.<br />Este dispositivo permanece bloqueado: ya puedes dejar el celular.</p>
+      <p class="bo-closed-foot mono"><i></i>SESIÓN SELLADA · SOLO LA COORDINACIÓN DOCENTE PUEDE REABRIRLA</p>
+    </div>
+  `;
+  const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+  root.addEventListener('contextmenu', stop);
+  document.body.appendChild(root);
+  document.body.classList.add('is-exam-locked', 'is-exam-closed');
+  closedRoot = root;
+  lockedHash = location.hash;
+}
+
+function hideClosedScreen() {
+  if (!closedRoot) return;
+  closedRoot.remove();
+  closedRoot = null;
+  document.body.classList.remove('is-exam-closed');
+  if (!lockdownRoot && !blockedRoot) document.body.classList.remove('is-exam-locked');
+  lockedHash = '';
+  try { history.replaceState(null, '', '#/inicio'); } catch {}
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+}
+
+/** El servidor manda: si reinició, lanzó otro examen o liberó al residente, se quita el cierre. */
+function closedStillValid(f, exam) {
+  if (!f || !exam) return Boolean(f);
+  if (exam.sessionId !== f.sessionId) return false;
+  const rel = exam.released?.[f.id];
+  if (rel && rel !== f.released) return false;
+  return true;
 }
 
 export function initExamLockdownMonitor() {
   if (mounted) return;
   mounted = true;
   armExamAudioUnlock();
+  if (!isAdscrito()) {
+    const f0 = closedFor(perfilId());
+    if (f0) showClosedScreen(f0);
+  }
 
   const isOnAdscritoView = () => {
     const h = (location.hash || '').replace(/^#\/?/, '').split('?')[0].toLowerCase();
@@ -262,9 +349,28 @@ export function initExamLockdownMonitor() {
     if (polling) return;
     polling = true;
     try {
+      // Sesión cerrada: solo se consulta al servidor para saber si la docente la liberó
+      const fc = !isAdscrito() ? closedFor(perfilId()) : null;
+      if (fc) {
+        let exam0 = null;
+        try {
+          const r0 = await fetch(ENDPOINT, { cache: 'no-store' });
+          if (r0.ok) exam0 = (await r0.json())?.exam || null;
+        } catch {}
+        if (exam0 && !closedStillValid(fc, exam0)) {
+          clearClosed();
+          hideClosedScreen();
+        } else {
+          if (!document.querySelector('.eval-overlay')) showClosedScreen(fc);
+          return;
+        }
+      } else if (closedRoot) {
+        hideClosedScreen();
+      }
       const inGate = Boolean(document.getElementById('boot-gate')) || document.body.classList.contains('is-landing');
       if (inGate) {
         if (pillEl) pillEl.hidden = true;
+        updateSoundChip();
         return;
       }
       // Si está dentro de la consola docente (#/adscrito), no se bloquea la consola en sí
@@ -292,7 +398,16 @@ export function initExamLockdownMonitor() {
       });
       const exam = res?.exam;
       const me = res?.me;
+      // Ya entregó en otro dispositivo (o en éste): el servidor lo sabe → sesión cerrada
+      if (!isAdscrito() && exam && me?.state === 'entregado' && exam.sessionId && exam.sessionId !== 'lobby-inicial'
+        && !exam.released?.[p.id] && !lockdownRoot && !document.querySelector('.eval-overlay')) {
+        const f = { sessionId: exam.sessionId, id: p.id, name: p.name, at: Number(me.submittedAt) || Date.now(), topic: exam.topicLabel || '', released: null };
+        writeClosed(f);
+        showClosedScreen(f);
+        return;
+      }
       ensureExplorePill(Boolean(exam?.active));
+      updateSoundChip();
 
       const localDone = exam?.active && loadLocal(exam.sessionId, p.id)?.submitted;
       if (exam?.active && me?.state !== 'entregado' && !localDone) {
@@ -360,7 +475,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122e" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122g" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -510,53 +625,104 @@ const EXAM_VOICE_SRC = 'assets/voz/examen-inicio.mp3';
 const EXAM_VOICE_TEXT = 'Atención. El examen ha comenzado. Cuidado al hacer trampa: CALOT está vigilando.';
 const EXAM_BED_SRC = 'assets/sfx/sombra.mp3';
 const EXAM_BED_VOL = 0.24;
-const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-let examPrimed = null;
-let examBed = null; // { el, gain?, ctx? }
+// Voz y música viven como AudioBuffers decodificados en el AudioContext compartido:
+// así suenan en celular aunque el examen llegue por sondeo, sin gesto del usuario.
+const examBuf = { voice: null, bed: null, loading: null, voiceFailed: false, bedFailed: false };
+let examBed = null; // { src, gain, ctx }
+let examVoiceSrc = null;
+let examAudioGen = 0;
+let soundChipEl = null;
 
-function primeExamAudio() {
-  if (examPrimed) return examPrimed;
-  const mk = (src) => {
-    const a = new Audio(src);
-    a.preload = 'auto';
-    a.playsInline = true;
-    a.setAttribute('playsinline', '');
-    return a;
-  };
-  examPrimed = { voice: mk(EXAM_VOICE_SRC), bed: mk(EXAM_BED_SRC), voiceOk: true, unlocking: false };
-  examPrimed.bed.loop = true;
-  examPrimed.voice.addEventListener('error', () => { examPrimed.voiceOk = false; }, { once: true });
-  return examPrimed;
+/** El dispositivo/panel de la docente nunca reproduce nada. */
+const isSilentDevice = () => isAdscrito() || isDocenteSilentDevice();
+
+function examCtx() {
+  try { return getEngine()?.ctx || null; } catch { return null; }
 }
 
-/** En celular, un toque previo del residente «desbloquea» estos audios para que suenen al llegar el examen. */
+function decodeBuf(ctx, src) {
+  return fetch(src)
+    .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
+    .then((ab) => new Promise((res, rej) => {
+      const pr = ctx.decodeAudioData(ab, res, rej);
+      if (pr && typeof pr.then === 'function') pr.then(res, rej);
+    }));
+}
+
+function loadExamBuffers() {
+  if (examBuf.loading) return examBuf.loading;
+  const ctx = examCtx();
+  if (!ctx) {
+    examBuf.voiceFailed = true;
+    return Promise.resolve();
+  }
+  examBuf.loading = Promise.all([
+    examBuf.voice ? null : decodeBuf(ctx, EXAM_VOICE_SRC).then((b) => { examBuf.voice = b; }, () => { examBuf.voiceFailed = true; }),
+    examBuf.bed ? null : decodeBuf(ctx, EXAM_BED_SRC).then((b) => { examBuf.bed = b; }, () => { examBuf.bedFailed = true; }),
+  ]);
+  return examBuf.loading;
+}
+
+/** Chip discreto para que el residente toque y deje el audio listo antes del examen. */
+function updateSoundChip() {
+  const ctx = isSilentDevice() ? null : examCtx();
+  const show = Boolean(ctx) && ctx.state !== 'running' && !lockdownRoot;
+  if (!show) {
+    if (soundChipEl) soundChipEl.hidden = true;
+    return;
+  }
+  if (!soundChipEl) {
+    soundChipEl = document.createElement('button');
+    soundChipEl.type = 'button';
+    soundChipEl.className = 'bo-sound-chip mono';
+    soundChipEl.innerHTML = '<span class="bo-sound-chip-dot"></span>Toca para activar el sonido del sistema';
+    document.body.appendChild(soundChipEl);
+  }
+  soundChipEl.hidden = false;
+}
+
+/** Primer gesto del residente: reanuda el AudioContext, buffer vacío y decodifica voz + música.
+    Nunca reproduce elementos <audio>. En la docente no se arma nada. */
 function armExamAudioUnlock() {
-  const once = () => {
-    window.removeEventListener('pointerdown', once, true);
-    window.removeEventListener('keydown', once, true);
-    try { unlockPortalAudio(); } catch {}
-    const p = primeExamAudio();
-    if (examBed) return;
-    p.unlocking = true;
-    [p.voice, p.bed].forEach((a) => {
-      try {
-        a.muted = true;
-        const pr = a.play();
-        const done = () => { if (p.unlocking) { try { a.pause(); a.currentTime = 0; } catch {} } a.muted = false; };
-        if (pr?.then) pr.then(done, done); else done();
-      } catch { a.muted = false; }
-    });
-    setTimeout(() => { p.unlocking = false; }, 1500);
-  };
-  window.addEventListener('pointerdown', once, true);
-  window.addEventListener('keydown', once, true);
+  const EVS = ['pointerdown', 'touchend', 'keydown'];
+  const off = () => EVS.forEach((ev) => window.removeEventListener(ev, onGesture, true));
+  function onGesture() {
+    if (isSilentDevice()) { updateSoundChip(); return; } // la docente nunca: se reevalúa en cada gesto
+    const ctx = examCtx();
+    if (!ctx) { off(); return; }
+    try {
+      const b = ctx.createBuffer(1, 1, 22050);
+      const s = ctx.createBufferSource();
+      s.buffer = b;
+      s.connect(ctx.destination);
+      s.start(0);
+    } catch {}
+    loadExamBuffers();
+    const after = () => {
+      if (ctx.state === 'running') off(); // en iOS a veces sólo cuenta el touchend: seguimos escuchando hasta lograrlo
+      updateSoundChip();
+    };
+    try {
+      const pr = ctx.resume();
+      if (pr && typeof pr.then === 'function') pr.then(after, after); else after();
+    } catch { after(); }
+  }
+  EVS.forEach((ev) => window.addEventListener(ev, onGesture, { capture: true, passive: true }));
+  if (isSilentDevice()) return;
+  // Decodificar no necesita gesto: se adelanta para tener todo listo
+  loadExamBuffers();
+  const ctx = examCtx();
+  if (ctx) {
+    try { ctx.addEventListener('statechange', updateSoundChip); } catch {}
+  }
+  setTimeout(updateSoundChip, 1200);
 }
 
 /** Dos pares de pulsos medios/graves con filtro: avisa sin espantar. */
 function playSoftExamAlarm() {
   try {
     const eng = getEngine();
-    if (!eng || eng.ctx.state !== 'running') return;
+    if (!eng || eng.ctx.state === 'closed') return;
     const { ctx, dry } = eng;
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
@@ -585,114 +751,110 @@ function playSoftExamAlarm() {
 function setBedLevel(v, sec = 0.6) {
   if (!examBed) return;
   try {
-    if (examBed.gain) {
-      const t = examBed.ctx.currentTime;
-      examBed.gain.gain.cancelScheduledValues(t);
-      examBed.gain.gain.setValueAtTime(examBed.gain.gain.value, t);
-      examBed.gain.gain.linearRampToValueAtTime(v, t + sec);
-    } else {
-      const el = examBed.el;
-      const from = el.volume;
-      const steps = Math.max(1, Math.round(sec * 20));
-      let i = 0;
-      clearInterval(examBed.fade);
-      examBed.fade = setInterval(() => {
-        i += 1;
-        el.volume = Math.max(0, Math.min(1, from + ((v - from) * i) / steps));
-        if (i >= steps) clearInterval(examBed.fade);
-      }, 50);
-    }
+    const g = examBed.gain.gain;
+    const t = examBed.ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(Math.max(0.0001, g.value), t);
+    g.linearRampToValueAtTime(Math.max(0.0001, v), t + sec);
   } catch {}
 }
 
+/** Música de misterio: BufferSource → pasa-bajos suave → ganancia → salida. */
 function startExamBed() {
-  if (examBed) return;
-  const p = primeExamAudio();
-  p.unlocking = false;
-  const el = p.bed;
-  const eng = getEngine();
-  try {
-    if (eng && eng.ctx.state === 'running') {
-      // Pasa por un filtro pasa-bajos: misterio suave, nada chillante
-      if (!el._boSrc) {
-        el._boSrc = eng.ctx.createMediaElementSource(el);
-        el._boLp = eng.ctx.createBiquadFilter();
-        el._boLp.type = 'lowpass';
-        el._boLp.frequency.value = 2200;
-        el._boGain = eng.ctx.createGain();
-        el._boSrc.connect(el._boLp); el._boLp.connect(el._boGain); el._boGain.connect(eng.ctx.destination);
-      }
-      el._boGain.gain.value = 0.0001;
-      el.volume = 1;
-      examBed = { el, gain: el._boGain, ctx: eng.ctx };
-    } else if (!IS_IOS) {
-      el.volume = 0;
-      examBed = { el };
-    } else {
-      return; // iOS sin Web Audio no respeta el volumen: mejor sin música que a todo volumen
-    }
-    el.muted = false;
-    el.currentTime = 0;
-    el.play().catch(() => {});
-    setBedLevel(EXAM_BED_VOL, 2);
-  } catch {}
+  const gen = examAudioGen;
+  const go = () => {
+    if (gen !== examAudioGen || examBed || !examBuf.bed) return;
+    const ctx = examCtx();
+    if (!ctx) return;
+    try {
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const src = ctx.createBufferSource();
+      src.buffer = examBuf.bed;
+      src.loop = true;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 2200;
+      lp.Q.value = 0.5;
+      const gain = ctx.createGain();
+      gain.gain.value = 0.0001;
+      src.connect(lp); lp.connect(gain); gain.connect(ctx.destination);
+      src.start();
+      examBed = { src, gain, ctx };
+      setBedLevel(examVoiceSrc ? EXAM_BED_VOL * 0.4 : EXAM_BED_VOL, 2);
+    } catch {}
+  };
+  if (examBuf.bed) go(); else loadExamBuffers().then(go);
 }
 
 function stopExamBed(fadeMs = 1200) {
   if (!examBed) return;
   const bed = examBed;
   setBedLevel(0.0001, fadeMs / 1000);
-  setTimeout(() => {
-    try { bed.el.pause(); bed.el.currentTime = 0; } catch {}
-    clearInterval(bed.fade);
-  }, fadeMs + 80);
+  setTimeout(() => { try { bed.src.stop(); bed.src.disconnect(); } catch {} }, fadeMs + 80);
   examBed = null;
 }
 
-function speakExamWarning() {
-  const p = primeExamAudio();
-  const duck = () => setBedLevel(EXAM_BED_VOL * 0.4, 0.4);
-  const restore = () => setBedLevel(EXAM_BED_VOL, 1.2);
-  const tts = () => {
-    try {
-      const synth = window.speechSynthesis;
-      if (!synth) return;
-      const u = new SpeechSynthesisUtterance(EXAM_VOICE_TEXT);
-      u.lang = 'es-MX';
-      const v = synth.getVoices().find((x) => /^es[-_]MX/i.test(x.lang)) || synth.getVoices().find((x) => /^es/i.test(x.lang));
-      if (v) u.voice = v;
-      u.rate = 0.95;
-      u.pitch = 0.85;
-      u.onend = restore;
-      duck();
-      synth.cancel();
-      synth.speak(u);
-    } catch {}
-  };
-  if (!p.voiceOk) { tts(); return; }
+function speakExamTts(restore) {
   try {
-    const a = p.voice;
-    a.muted = false;
-    a.volume = 1;
-    a.currentTime = 0;
-    a.onended = restore;
-    a.onerror = () => { p.voiceOk = false; tts(); };
-    duck();
-    a.play().catch(() => { if (!p.voiceOk) return; tts(); });
-  } catch { tts(); }
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    const u = new SpeechSynthesisUtterance(EXAM_VOICE_TEXT);
+    u.lang = 'es-MX';
+    const v = synth.getVoices().find((x) => /^es[-_]MX/i.test(x.lang)) || synth.getVoices().find((x) => /^es/i.test(x.lang));
+    if (v) u.voice = v;
+    u.rate = 0.95;
+    u.pitch = 0.85;
+    u.onend = restore;
+    synth.cancel();
+    synth.speak(u);
+  } catch {}
 }
 
-/** Fase 1 arranca con: aviso suave → voz de CALOT → música baja. */
+/** Voz de CALOT como BufferSource; la música baja mientras habla. */
+function speakExamWarning() {
+  const gen = examAudioGen;
+  const duck = () => setBedLevel(EXAM_BED_VOL * 0.4, 0.4);
+  const restore = () => { examVoiceSrc = null; if (gen === examAudioGen) setBedLevel(EXAM_BED_VOL, 1.2); };
+  const play = () => {
+    if (gen !== examAudioGen) return;
+    const ctx = examCtx();
+    if (!examBuf.voice || !ctx) {
+      if (examBuf.voiceFailed || !ctx) { duck(); speakExamTts(restore); }
+      return;
+    }
+    try {
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const src = ctx.createBufferSource();
+      src.buffer = examBuf.voice;
+      const g = ctx.createGain();
+      g.gain.value = 1;
+      src.connect(g); g.connect(ctx.destination);
+      src.onended = restore;
+      examVoiceSrc = src;
+      duck();
+      src.start();
+    } catch { duck(); speakExamTts(restore); }
+  };
+  if (examBuf.voice || examBuf.voiceFailed) play(); else loadExamBuffers().then(play);
+}
+
+/** Fase 1 arranca con: aviso suave → música baja (900 ms) → voz de CALOT (1600 ms). */
 function startExamAudioSequence(timers) {
   if (silentLock || isAdscrito()) return; // nunca en el panel/dispositivo de la docente
+  const ctx = examCtx();
+  if (ctx && ctx.state === 'suspended') { try { ctx.resume().catch(() => {}); } catch {} }
+  loadExamBuffers();
+  if (soundChipEl) soundChipEl.hidden = true;
   playSoftExamAlarm();
   timers.push(setTimeout(startExamBed, 900));
   timers.push(setTimeout(speakExamWarning, 1600));
 }
 
 function stopExamAudio() {
+  examAudioGen += 1;
   stopExamBed(1200);
-  try { examPrimed?.voice?.pause(); } catch {}
+  try { examVoiceSrc?.stop(); } catch {}
+  examVoiceSrc = null;
   try { window.speechSynthesis?.cancel(); } catch {}
 }
 
@@ -860,7 +1022,7 @@ function runEvalPhase(root, exam, timers) {
 async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   closeLockdownOverlay();
   closeBlockedScreen();
-  unlockPortalAudio();
+  if (!isSilentDevice()) unlockPortalAudio();
   document.body.classList.add('is-exam-locked');
   lockedHash = location.hash;
   try {
@@ -919,7 +1081,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261122e" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122g" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
@@ -1460,6 +1622,10 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     st.pending = null;
     st.submitted = isCustom ? { picks: picks(), total, answered: answeredCount() } : { correct, total, answered: answeredCount() };
     persist();
+    const closedFlag = silentLock ? null : {
+      sessionId: exam.sessionId, id: p.id, name: p.name, at: Date.now(), topic: exam.topicLabel || '', released: exam.released?.[p.id] || null,
+    };
+    if (closedFlag) writeClosed(closedFlag);
     let serverMe = null;
     for (let tries = 0; tries < 3 && !serverMe; tries++) {
       try {
@@ -1495,7 +1661,8 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       reviewItems,
       sessionEnd: { name: p.name },
       onClose: () => {
-        location.hash = '#/inicio';
+        if (closedFlag) showClosedScreen(readClosed() || closedFlag);
+        else location.hash = '#/inicio';
       },
     });
   };

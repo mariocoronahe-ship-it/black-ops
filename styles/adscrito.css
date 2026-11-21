@@ -2260,3 +2260,147 @@ html.is-embed main#view { max-width: 100%; min-width: 0; overflow-x: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .bo-ctl-radar, .bo-ctl-scan, .bo-rc, .bo-rc::before, .bo-rc-bar i::after, .bo-rc .bo-rc-main { animation: none !important; }
 }
+
+/* ==========================================================================
+   Chip «Toca para activar el sonido del sistema» (solo residentes)
+   ========================================================================== */
+.bo-sound-chip {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 196, 92, .45);
+  background: rgba(14, 10, 6, .88);
+  color: #ffd9a0;
+  font-size: 11px;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+  cursor: pointer;
+  animation: bo-sound-chip-in .5s ease both;
+}
+.bo-sound-chip[hidden] { display: none; }
+.bo-sound-chip-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: #ffb547; box-shadow: 0 0 8px #ffb547;
+  animation: bo-sound-chip-pulse 1.6s ease-in-out infinite;
+}
+@keyframes bo-sound-chip-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+@keyframes bo-sound-chip-pulse { 50% { opacity: .35; } }
+html.is-embed .bo-sound-chip, body.is-exam-locked .bo-sound-chip { display: none; }
+
+/* ==========================================================================
+   Pantalla permanente «Examen entregado · Sesión cerrada»
+   ========================================================================== */
+.bo-closed {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow: hidden;
+  background: radial-gradient(120% 80% at 50% 0%, #2a0710 0%, #0a0204 55%, #000 100%);
+  color: #f6e9ec;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.bo-closed-grid {
+  position: absolute; inset: -50%;
+  background-image:
+    linear-gradient(rgba(255, 45, 70, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 45, 70, .07) 1px, transparent 1px);
+  background-size: 34px 34px;
+  transform: perspective(600px) rotateX(58deg) translateY(10%);
+  animation: bo-closed-grid 14s linear infinite;
+  pointer-events: none;
+}
+.bo-closed-scan {
+  position: absolute; left: 0; right: 0; height: 120px; top: -120px;
+  background: linear-gradient(180deg, transparent, rgba(255, 45, 70, .12), transparent);
+  animation: bo-closed-scan 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.bo-closed-card {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 28px 22px 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 45, 70, .38);
+  background: linear-gradient(180deg, rgba(30, 6, 12, .9), rgba(8, 2, 4, .94));
+  box-shadow: 0 0 0 1px rgba(255, 45, 70, .08) inset, 0 30px 80px rgba(0, 0, 0, .7), 0 0 60px rgba(255, 45, 70, .14);
+  text-align: center;
+  animation: bo-closed-in .7s cubic-bezier(.2, .8, .2, 1) both;
+}
+.bo-closed-seal { width: 64px; height: 64px; margin: 0 auto 10px; filter: drop-shadow(0 0 14px rgba(255, 45, 70, .55)); }
+.bo-closed-seal svg { width: 100%; height: 100%; }
+.bo-closed-kicker { margin: 0 0 8px; font-size: 10px; letter-spacing: .22em; color: #ff8a9b; opacity: .85; }
+.bo-closed-title {
+  margin: 0 0 14px;
+  font-size: clamp(24px, 7vw, 32px);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  color: #fff;
+}
+.bo-closed-title span {
+  display: block;
+  margin-top: 6px;
+  font-size: .52em;
+  font-weight: 700;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: #ff2d46;
+  text-shadow: 0 0 14px rgba(255, 45, 70, .6);
+}
+.bo-closed-name {
+  margin: 0 auto 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 210, 217, .28);
+  background: rgba(255, 45, 70, .07);
+  font-weight: 800;
+  font-size: clamp(16px, 5vw, 21px);
+  letter-spacing: .08em;
+  overflow-wrap: anywhere;
+}
+.bo-closed-meta { display: grid; gap: 6px; margin: 0 0 14px; font-size: 11px; text-align: left; }
+.bo-closed-meta div {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 7px 10px; border-radius: 8px; background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(255, 255, 255, .05);
+}
+.bo-closed-meta span { color: #ff8a9b; letter-spacing: .16em; flex: none; }
+.bo-closed-meta b { color: #f6e9ec; font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.bo-closed-msg { margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; color: #e6cfd4; }
+.bo-closed-msg b { color: #fff; }
+.bo-closed-foot {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 0; font-size: 9.5px; letter-spacing: .14em; color: #b88791;
+}
+.bo-closed-foot i {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: #ff2d46; box-shadow: 0 0 10px #ff2d46;
+  animation: bo-sound-chip-pulse 1.4s ease-in-out infinite;
+}
+@keyframes bo-closed-grid { to { background-position: 0 340px, 0 0; } }
+@keyframes bo-closed-scan { 0% { top: -120px; } 60%, 100% { top: 110%; } }
+@keyframes bo-closed-in { from { opacity: 0; transform: translateY(14px) scale(.97); filter: blur(4px); } }
+body.is-exam-closed { overflow: hidden; }
+body.is-exam-closed > :not(.bo-closed):not(script) { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .bo-closed-grid, .bo-closed-scan, .bo-closed-card, .bo-closed-foot i, .bo-sound-chip, .bo-sound-chip-dot { animation: none; }
+}

@@ -1,8 +1,8 @@
 // Competencia entre testers (Chantal, Areli, Daniela): métricas, índice, insignias y premio semanal.
 // Cada perfil publica sus métricas en /api/ranking y lee las de las demás. Sin API (local), se arma con
 // los almacenes de cada perfil guardados en este mismo navegador (calot:v3:<id>).
-import { store, todayISO } from './store.js?v=20261122e';
-import { PROFILES, TESTERS, perfilId, isOwner, wipeTestersLocalData } from './perfil.js?v=20261122e';
+import { store, todayISO } from './store.js?v=20261122g';
+import { PROFILES, TESTERS, perfilId, isOwner, wipeTestersLocalData } from './perfil.js?v=20261122g';
 
 const ENDPOINT = 'api/ranking';
 const WEEKS = 8;
