@@ -27,3 +27,13 @@ Eso **no se puede impedir desde una página web**. Mitigaciones:
 Cada pulso del residente (cada 2.2 s) manda su bitácora completa y su avance, así que si una escritura se pierde
 por concurrencia en la nube, el siguiente pulso la repara. Desbloquear y «Calificar así» viven en la llave de
 configuración docente, que los residentes nunca escriben.
+
+## Examen propio de la Dra. Hernández (Word)
+- En su panel: **Subir examen (Word)** → lee el .docx en su navegador (mammoth.js) y detecta la correcta por
+  inciso en **negritas** / subrayado / resaltado, línea «Respuesta: C» u hoja de respuestas al final.
+  Ella revisa y toca la correcta de cada pregunta; no se puede guardar si falta alguna.
+- Se guarda **cifrado** (AES-256-GCM, llave = `BO_EXAM_SECRET` en Vercel). Nada de las preguntas vive en el repo
+  (es público). «Reiniciar sala» conserva el examen; solo «Borrar examen» lo elimina.
+- Al iniciar con «PREGUNTAS: examen cargado», cada residente recibe solo enunciado + incisos (sin la respuesta),
+  en orden propio de preguntas y de incisos. El celular manda qué inciso original eligió y **el servidor califica**.
+- «📋 Ver respuestas» muestra por residente la pregunta y letra **del Word original** (no la barajada).

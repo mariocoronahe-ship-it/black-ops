@@ -1490,3 +1490,46 @@ body.is-exam-locked .bo-explore-pill {
   width: 96px;
   height: 96px;
 }
+
+/* Subir examen (Word) en el panel docente */
+.bo-import-empty, .bo-import-loaded { display: grid; gap: 10px; justify-items: start; }
+.bo-import-loaded p { margin: 0; }
+.bo-file-btn { cursor: pointer; }
+.bo-paste { width: 100%; font-family: var(--font-mono, ui-monospace, monospace); }
+.bo-import-editor { display: grid; gap: 12px; }
+.bo-import-summary { margin: 0; font-size: 12px; }
+.bo-import-summary.is-bad { color: #ff6b80; }
+.bo-import-summary.is-ok { color: #3ccf8e; }
+.bo-import-warn { margin: 0; padding-left: 18px; color: #e6a700; font-size: 11px; }
+.bo-import-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; max-height: 70vh; overflow-y: auto; }
+.bo-import-q {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+}
+.bo-import-q.is-missing { border-color: #ff4b66; box-shadow: 0 0 0 1px rgba(255, 75, 102, 0.4) inset; }
+.bo-import-qhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; opacity: 0.85; }
+.bo-import-q textarea { width: 100%; resize: vertical; }
+.bo-import-opt { display: flex; gap: 8px; align-items: center; }
+.bo-import-opt .input { flex: 1; min-width: 0; }
+.bo-import-pick {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(127, 127, 127, 0.45);
+  background: transparent;
+  color: inherit;
+  font: 700 13px/1 var(--font-mono, ui-monospace, monospace);
+  cursor: pointer;
+}
+.bo-import-opt.is-correct .bo-import-pick { background: #3ccf8e; border-color: #3ccf8e; color: #062; }
+.bo-import-opt.is-correct .input { border-color: #3ccf8e; }
+.bo-import-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.bo-results { margin-top: 8px; }
+.bo-results-list { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 2px; font-size: 11.5px; }
+.bo-results-list .is-ok { color: #3ccf8e; }
+.bo-results-list .is-bad { color: #ff6b80; }
+.bo-results-list .is-none { opacity: 0.6; }

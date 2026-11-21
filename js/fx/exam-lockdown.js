@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261121y';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121y';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121y';
+import { store, questions, loadStoreData } from '../store.js?v=20261121z';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121z';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121z';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121y';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261121y';
-import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121y';
-import { detectCurrentBrowser } from './browser-check.js?v=20261121y';
+import { playUiSfx } from './audio.js?v=20261121z';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261121z';
+import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121z';
+import { detectCurrentBrowser } from './browser-check.js?v=20261121z';
 
 const ENDPOINT = '/api/examen';
 
@@ -87,9 +87,9 @@ async function buildQuestionPool(topic, count, seedStr) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261121y'),
-        import('../data/juegos_drive_v1.js?v=20261121y'),
-        import('../data/juegos_drive_v2.js?v=20261121y'),
+        import('../data/juegos_argos.js?v=20261121z'),
+        import('../data/juegos_drive_v1.js?v=20261121z'),
+        import('../data/juegos_drive_v2.js?v=20261121z'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -354,7 +354,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261121y" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261121z" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -553,7 +553,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261121y" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261121z" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
@@ -633,7 +633,34 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   };
   if (!resuming) rafId = requestAnimationFrame(drawMatrix);
 
-  const qs = await buildQuestionPool(exam.topic, exam.questionCount || 15, `${exam.sessionId}:${p.id}`);
+  const seedStr = `${exam.sessionId}:${p.id}`;
+  const isCustom = exam.source === 'custom';
+  let qs;
+  if (isCustom) {
+    // Examen cargado por la docente: el servidor manda enunciados e incisos SIN la respuesta correcta
+    let list = null;
+    for (let tries = 0; tries < 40 && root.isConnected && !list; tries++) {
+      try {
+        const r = await apiPost({ action: 'questions', id: p.id, name: p.name, sessionId: exam.sessionId, browser: BROWSER });
+        if (Array.isArray(r?.questions) && r.questions.length) list = r.questions;
+      } catch {}
+      if (!list) await new Promise((res) => setTimeout(res, 1500));
+    }
+    if (!list) {
+      toast('No se pudieron descargar las preguntas. Avisa a la Dra. Hernández.');
+      closeLockdownOverlay();
+      activeSessionId = null;
+      return;
+    }
+    const order = seededShuffle(list.map((_, i) => i), `${seedStr}:questions`);
+    qs = order.map((orig) => {
+      const q = list[orig];
+      const opts = seededShuffle(q.options.map((txt, i) => ({ txt, i })), `${seedStr}:opts:${orig}`);
+      return { orig, stem: q.stem, options: opts.map((o) => o.txt), optMap: opts.map((o) => o.i), answer: -1, explanation: '' };
+    });
+  } else {
+    qs = await buildQuestionPool(exam.topic, exam.questionCount || 15, seedStr);
+  }
   if (!root.isConnected) return;
   const examStage = root.querySelector('[data-bo-exam]');
   const takeoverStage = root.querySelector('[data-bo-takeover]');
@@ -674,14 +701,22 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   const isLockedByCheat = () => serverLocked || (strikesCount() - pardoned >= limit);
   const correctCount = () => st.answers.reduce((a, ans, i) => a + (ans && ans.i === qs[i]?.answer ? 1 : 0), 0);
   const answeredCount = () => st.answers.filter(Boolean).length;
-  const curQ = () => st.qIdx + 1;
+  const curQ = () => st.qIdx + 1; // número que ve el residente
+  // Número original de la pregunta (el del Word de la docente) para el panel
+  const origQ = (idx = st.qIdx) => (isCustom ? (qs[idx]?.orig ?? idx) + 1 : idx + 1);
+  const letterFor = (qi, i) => LETTERS[qs[qi]?.optMap ? qs[qi].optMap[i] : i];
+  const picks = () => {
+    const out = Array(N).fill(null);
+    st.answers.forEach((a, i) => { if (a && qs[i]?.optMap) out[qs[i].orig] = qs[i].optMap[a.i]; });
+    return out;
+  };
 
   const payload = () => ({
     sessionId: exam.sessionId,
     qIndex: st.qIdx,
     qTotal: N,
     answered: answeredCount(),
-    correct: correctCount(),
+    ...(isCustom ? { picks: picks() } : { correct: correctCount() }),
     events: st.events.slice(-80),
   });
   root._payload = () => (st.started ? payload() : { sessionId: exam.sessionId });
@@ -715,8 +750,8 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   };
 
   // ---- Detección de salidas, parpadeos, recargas e interrupciones ----
-  const registerExit = (kind, sec, q, why) => {
-    addEvent({ k: kind, q, s: sec, why });
+  const registerExit = (kind, sec, q, why, d) => {
+    addEvent({ k: kind, q, d, s: sec, why });
     if (COUNTED.has(kind)) {
       playUiSfx('bad');
       updateHud();
@@ -729,19 +764,19 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     if (!examRunning) return;
     if (document.hidden) {
       sawHiddenSinceBlur = true;
-      if (!st.pending) { st.pending = { since: Date.now(), q: curQ() }; persist(); }
+      if (!st.pending) { st.pending = { since: Date.now(), q: origQ(), d: curQ() }; persist(); }
     } else if (st.pending) {
       const sec = (Date.now() - st.pending.since) / 1000;
-      const q = st.pending.q;
+      const { q, d } = st.pending;
       st.pending = null;
-      if (sec >= MIN_EXIT_SEC) registerExit('salida', sec, q, 'Salió de la pestaña / cambió de app');
-      else registerExit('parpadeo', sec, q, 'Pestaña oculta menos de 2 s');
+      if (sec >= MIN_EXIT_SEC) registerExit('salida', sec, q, 'Salió de la pestaña / cambió de app', d);
+      else registerExit('parpadeo', sec, q, 'Pestaña oculta menos de 2 s', d);
     }
   };
 
   const onPageHide = () => {
     if (!examRunning || root.dataset.submitting) return;
-    if (!st.pending) st.pending = { since: Date.now(), q: curQ() };
+    if (!st.pending) st.pending = { since: Date.now(), q: origQ(), d: curQ() };
     persist();
   };
 
@@ -755,7 +790,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     const sec = (Date.now() - blurSince) / 1000;
     blurSince = 0;
     if (!sawHiddenSinceBlur && sec >= 0.8) {
-      addEvent({ k: 'interrupcion', q: curQ(), s: sec, why: 'Perdió el foco sin salir (algo se abrió encima)' });
+      addEvent({ k: 'interrupcion', q: origQ(), d: curQ(), s: sec, why: 'Perdió el foco sin salir (algo se abrió encima)' });
       syncNow();
     }
   };
@@ -784,7 +819,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       const sec = (Date.now() - vpSince) / 1000;
       vpSince = 0;
       if (sec >= 0.8) {
-        addEvent({ k: 'interrupcion', q: curQ(), s: sec, why: vpWhy });
+        addEvent({ k: 'interrupcion', q: origQ(), d: curQ(), s: sec, why: vpWhy });
         syncNow();
       }
     }
@@ -833,7 +868,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     const n = strikesCount();
     const last = lastCountedEvent();
     const lastTxt = last
-      ? `${last.k === 'recarga' ? 'recargó/cerró la página' : 'salió'} ${fmtSec(last.s)} en la Pregunta ${last.q}`
+      ? `${last.k === 'recarga' ? 'recargó/cerró la página' : 'salió'} ${fmtSec(last.s)} en la Pregunta ${last.d || last.q}`
       : '';
     if (isLockedByCheat()) {
       cheatModal.hidden = false;
@@ -974,12 +1009,12 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     if (prev) {
       const after = exits.filter((e) => e.ts > prev.ts).slice(-1)[0];
       if (after) {
-        addEvent({ k: 'cambio', q: qi + 1, from: LETTERS[prev.i], to: LETTERS[chosenIdx], s: after.s, ref: `${EXIT_VERB[after.k] || after.k} ${fmtSec(after.s)} en P${after.q}` });
+        addEvent({ k: 'cambio', q: origQ(qi), d: qi + 1, from: letterFor(qi, prev.i), to: letterFor(qi, chosenIdx), s: after.s, ref: `${EXIT_VERB[after.k] || after.k} ${fmtSec(after.s)} en P${after.q}` });
       }
     } else {
-      const recent = exits.filter((e) => e.q === qi + 1 && now - e.ts < 120000).slice(-1)[0];
+      const recent = exits.filter((e) => e.q === origQ(qi) && now - e.ts < 120000).slice(-1)[0];
       if (recent) {
-        addEvent({ k: 'cambio', q: qi + 1, from: null, to: LETTERS[chosenIdx], s: recent.s, ref: `${EXIT_VERB[recent.k] || recent.k} ${fmtSec(recent.s)} en P${recent.q}` });
+        addEvent({ k: 'cambio', q: origQ(qi), d: qi + 1, from: null, to: letterFor(qi, chosenIdx), s: recent.s, ref: `${EXIT_VERB[recent.k] || recent.k} ${fmtSec(recent.s)} en P${recent.q}` });
       }
     }
     st.answers[qi] = { i: chosenIdx, ts: now };
@@ -1027,16 +1062,24 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     tauntLoop?.stop?.();
 
     const total = N || 1;
-    const correct = correctCount();
-    const pct = Math.round((correct / total) * 100);
+    let correct = correctCount();
     st.pending = null;
-    st.submitted = { correct, total, answered: answeredCount() };
+    st.submitted = isCustom ? { picks: picks(), total, answered: answeredCount() } : { correct, total, answered: answeredCount() };
     persist();
-    try {
-      await apiPost({ action: 'submit', id: p.id, name: p.name, browser: BROWSER, ...payload(), correct, total, answered: answeredCount() });
-    } catch {}
+    let serverMe = null;
+    for (let tries = 0; tries < 3 && !serverMe; tries++) {
+      try {
+        const r = await apiPost({ action: 'submit', id: p.id, name: p.name, browser: BROWSER, ...payload(), ...(isCustom ? {} : { correct }), total, answered: answeredCount() });
+        serverMe = r?.me || null;
+      } catch {
+        await new Promise((res) => setTimeout(res, 800));
+      }
+    }
+    // En el examen de la docente la calificación la calcula el servidor (el celular no conoce las respuestas)
+    if (isCustom) correct = Number(serverMe?.correct || 0);
+    const pct = isCustom && serverMe?.scorePct != null ? serverMe.scorePct : Math.round((correct / total) * 100);
 
-    const reviewItems = qs.map((q, i) => {
+    const reviewItems = isCustom ? [] : qs.map((q, i) => {
       const a = st.answers[i];
       return {
         q: `${i + 1}. ${q.stem}`,
@@ -1054,7 +1097,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       correct,
       total,
       modeLabel: `${exam.topicLabel || 'Examen R2'} · ${p.name}`,
-      detail: `${correct} de ${total} aciertos · ${strikesCount()} salidas de pantalla${forced ? ' · Cierre docente' : ''}`,
+      detail: `${correct} de ${total} aciertos · ${strikesCount()} salidas de pantalla${forced ? ' · Cierre docente' : ''}${isCustom ? ' · La revisión de respuestas la verás con la Dra. Hernández' : ''}`,
       reviewItems,
       onClose: () => {
         location.hash = '#/inicio';
@@ -1118,9 +1161,9 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     // ¿Venimos de una recarga / cierre de la página a media prueba? Cuenta como salida con su tiempo real.
     if (st.pending) {
       const sec = Math.max(0.1, (Date.now() - st.pending.since) / 1000);
-      const q = st.pending.q;
+      const { q, d } = st.pending;
       st.pending = null;
-      addEvent({ k: 'recarga', q, s: sec, why: 'Recargó o cerró la página del examen' });
+      addEvent({ k: 'recarga', q, d, s: sec, why: 'Recargó o cerró la página del examen' });
     }
     tauntLoop = startWaitingTaunts();
     renderQuestion();

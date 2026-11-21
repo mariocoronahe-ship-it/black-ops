@@ -5,11 +5,12 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261121y';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121y';
+import { icon } from '../icons.js?v=20261121z';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121z';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261121y';
-import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121y';
+import { playUiSfx } from '../fx/audio.js?v=20261121z';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261121z';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261121z';
 
 export const section = 'biblio';
 
@@ -44,11 +45,19 @@ let board = {
   residents: {},
 };
 
+// Examen de la docente en edición (solo vive en esta pestaña hasta que se guarda)
+let importDraft = null; // { title, questions:[{stem, options[], answer, answerFrom}], warnings[] }
+let importBusy = false;
+let pasteOpen = false;
+let resultsData = null; // respuesta de la acción 'results'
+let resultsOpenFor = null;
+
 let formDraft = {
   topic: 'colon',
   questionCount: 15,
   durationMin: 20,
   strictMode: '2strikes',
+  source: 'auto', // 'auto' usa el examen cargado si existe
 };
 let pollTimer = null;
 let lastSig = '';
@@ -180,9 +189,10 @@ function antiCheatHTML(r) {
   return parts.join('');
 }
 
-function downloadCSV(rows) {
+function downloadCSV(rows, detail = null) {
   const ex = board.exam || {};
   const header = ['Residente', 'Grado', 'Estado', 'Navegador', 'Calificacion (%)', 'Aciertos', 'Total Reactivos', 'Salidas Detectadas', 'Detalle Anti-Trampa', 'Ultima Conexion'];
+  if (detail?.content) header.push('Respuestas por pregunta');
   const lines = [header.join(',')];
   for (const r of rows) {
     const logTxt = r.events.filter((e) => e.k !== 'parpadeo').map((e) => `${KIND_TXT[e.k] || e.k} ${eventText(e)}`).join(' | ').replace(/"/g, "'") || 'Limpio';
@@ -198,6 +208,10 @@ function downloadCSV(rows) {
       `"${logTxt}"`,
       `"${r.lastSeenLabel}"`,
     ];
+    if (detail?.content) {
+      const picks = detail.picks?.[r.id] || [];
+      vals.push(`"${detail.content.questions.map((q, i) => `${i + 1}:${picks[i] == null ? '-' : OPTION_LETTERS[picks[i]]}${picks[i] == null ? '' : picks[i] === q.answer ? '✓' : '✗'}`).join(' ')}"`);
+    }
     lines.push(vals.join(','));
   }
   const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -209,6 +223,107 @@ function downloadCSV(rows) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// Por defecto: si hay examen cargado, se usa ese
+function useCustomSource(ex) {
+  if (ex.active) return ex.source === 'custom';
+  return Boolean(ex.custom) && formDraft.source !== 'banco';
+}
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  try { return new Date(ts).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+}
+
+function importEditorHTML() {
+  const d = importDraft;
+  const missing = d.questions.filter((q) => !(q.answer >= 0)).length;
+  return `
+    <div class="bo-import-editor" data-bo-import>
+      <label class="bo-field">
+        <span class="mono">TÍTULO DEL EXAMEN</span>
+        <input class="input" data-bo-imp="title" value="${esc(d.title)}" maxlength="80" />
+      </label>
+      <p class="mono bo-import-summary ${missing ? 'is-bad' : 'is-ok'}">
+        ${d.questions.length} preguntas leídas · ${missing ? `<b>${missing} sin respuesta correcta</b> — tóquela abajo` : '✓ todas tienen respuesta correcta'}
+      </p>
+      ${d.warnings.length ? `<ul class="bo-import-warn mono">${d.warnings.slice(0, 6).map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+      <ol class="bo-import-list">
+        ${d.questions.map((q, qi) => `
+          <li class="bo-import-q ${q.answer >= 0 ? '' : 'is-missing'}">
+            <div class="bo-import-qhead mono">
+              <span>Pregunta ${qi + 1}${q.answerFrom ? ` · respuesta por ${esc(q.answerFrom)}` : ''}</span>
+              <button type="button" class="btn btn-sm btn-ghost" data-bo-imp-del="${qi}">Quitar</button>
+            </div>
+            <textarea class="input" rows="3" data-bo-imp="stem" data-q="${qi}">${esc(q.stem)}</textarea>
+            ${q.options.map((o, oi) => `
+              <div class="bo-import-opt ${q.answer === oi ? 'is-correct' : ''}">
+                <button type="button" class="bo-import-pick" data-bo-imp-pick="${qi}:${oi}" aria-label="Marcar ${OPTION_LETTERS[oi]} como correcta">${q.answer === oi ? '✓' : OPTION_LETTERS[oi]}</button>
+                <input class="input" data-bo-imp="opt" data-q="${qi}" data-o="${oi}" value="${esc(o)}" />
+              </div>`).join('')}
+          </li>`).join('')}
+      </ol>
+      <div class="bo-import-actions">
+        <button type="button" class="btn btn-ghost" data-bo-act="import-cancel">Cancelar</button>
+        <button type="button" class="btn btn-glow" data-bo-act="import-save" ${missing || !d.questions.length || importBusy ? 'disabled' : ''}>🔒 Guardar examen (${d.questions.length} preguntas)</button>
+      </div>
+    </div>`;
+}
+
+function customExamCardHTML(ex) {
+  const c = ex.custom;
+  let body;
+  if (importDraft) {
+    body = importEditorHTML();
+  } else if (c) {
+    body = `
+      <div class="bo-import-loaded">
+        <p>📄 <b>${esc(c.title)}</b> · ${c.count} preguntas</p>
+        <p class="mono muted">Cargado ${esc(fmtTime(c.uploadedAt))}${c.device ? ` desde ${esc(c.device)}` : ''} · guardado cifrado</p>
+        <div class="bo-import-actions">
+          <button type="button" class="btn btn-sm btn-ghost" data-bo-act="import-edit" ${ex.active ? 'disabled' : ''}>✎ Revisar / editar</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-bo-act="import-clear" ${ex.active && ex.source === 'custom' ? 'disabled' : ''}>🗑 Borrar examen</button>
+        </div>
+      </div>`;
+  } else {
+    body = `
+      <div class="bo-import-empty" data-bo-import>
+        <p class="muted">Sube el Word (.docx) con sus preguntas. La respuesta correcta se detecta si el inciso está en <b>negritas</b>, si hay una línea «Respuesta: C» o una hoja de respuestas al final. Antes de guardar podrá revisar y corregir todo.</p>
+        <label class="btn btn-glow bo-file-btn">
+          ${importBusy ? 'Leyendo…' : '📄 Elegir archivo Word (.docx)'}
+          <input type="file" accept=".docx,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" data-bo-imp-file hidden />
+        </label>
+        <button type="button" class="btn btn-sm btn-ghost" data-bo-act="import-paste-toggle">${pasteOpen ? 'Ocultar' : 'o pegar el texto'}</button>
+        ${pasteOpen ? `
+          <textarea class="input bo-paste" rows="8" data-bo-imp-paste placeholder="1. Enunciado…&#10;A) …&#10;B) …&#10;C) …&#10;D) …&#10;Respuesta: B"></textarea>
+          <button type="button" class="btn btn-sm btn-glow" data-bo-act="import-paste-read">Leer texto</button>` : ''}
+      </div>`;
+  }
+  return `
+  <section class="card bo-control-card bo-import-card" data-wing-enter>
+    <div class="ads-sec-head">
+      <div>
+        <p class="mono ads-kicker">PREGUNTAS DE LA DRA. HERNÁNDEZ</p>
+        <h2>Subir examen (Word)</h2>
+      </div>
+    </div>
+    ${body}
+  </section>`;
+}
+
+function resultsHTML(rowId) {
+  const data = resultsData;
+  if (!data) return '<p class="muted mono">Cargando respuestas…</p>';
+  const content = data.content;
+  const picks = data.picks?.[rowId];
+  if (!content) return '<p class="muted mono">El detalle por pregunta solo está disponible con un examen cargado (Word).</p>';
+  if (!picks) return '<p class="muted mono">Aún no hay respuestas de este residente.</p>';
+  return `<ol class="bo-results-list mono">${content.questions.map((q, i) => {
+    const p = picks[i];
+    const ok = p === q.answer;
+    return `<li class="${p == null ? 'is-none' : ok ? 'is-ok' : 'is-bad'}">P${i + 1}: ${p == null ? 'sin contestar' : `eligió ${OPTION_LETTERS[p]}`} ${p == null ? '' : ok ? '✓' : `✗ (correcta ${OPTION_LETTERS[q.answer]})`}</li>`;
+  }).join('')}</ol>`;
 }
 
 export function render() {
@@ -274,6 +389,8 @@ export function render() {
     </article>
   </div>
 
+  ${customExamCardHTML(ex)}
+
   <section class="card bo-control-card" data-wing-enter>
     <div class="ads-sec-head">
       <div>
@@ -288,6 +405,13 @@ export function render() {
 
     <div class="bo-config-grid">
       <label class="bo-field">
+        <span class="mono">PREGUNTAS</span>
+        <select class="input" data-bo-cfg="source">
+          <option value="banco" ${useCustomSource(ex) ? '' : 'selected'}>Banco CALOT (por tema)</option>
+          ${ex.custom ? `<option value="custom" ${useCustomSource(ex) ? 'selected' : ''}>📄 ${esc(ex.custom.title)} (${ex.custom.count})</option>` : ''}
+        </select>
+      </label>
+      ${useCustomSource(ex) ? '' : `<label class="bo-field">
         <span class="mono">MÓDULO DEL EXAMEN R2</span>
         <select class="input" data-bo-cfg="topic">
           ${TOPIC_OPTIONS.map((t) => `<option value="${t.id}" ${formDraft.topic === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
@@ -298,11 +422,11 @@ export function render() {
         <select class="input" data-bo-cfg="questionCount">
           ${[10, 15, 20, 25, 30].map((n) => `<option value="${n}" ${Number(formDraft.questionCount) === n ? 'selected' : ''}>${n} preguntas</option>`).join('')}
         </select>
-      </label>
+      </label>`}
       <label class="bo-field">
         <span class="mono">TIEMPO LÍMITE</span>
         <select class="input" data-bo-cfg="durationMin">
-          ${[15, 20, 30, 45].map((m) => `<option value="${m}" ${Number(formDraft.durationMin) === m ? 'selected' : ''}>${m} minutos</option>`).join('')}
+          ${[15, 20, 30, 45, 60, 90].map((m) => `<option value="${m}" ${Number(formDraft.durationMin) === m ? 'selected' : ''}>${m} minutos</option>`).join('')}
         </select>
       </label>
       <label class="bo-field">
@@ -379,7 +503,9 @@ export function render() {
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                   ${r.locked ? `<button type="button" class="btn btn-sm btn-glow" data-bo-unlock="${esc(r.id)}">🔓 Desbloquear</button>` : ''}
                   ${r.hasJoined && r.state !== 'entregado' && ex.active ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-finish="${esc(r.id)}">⛔ Calificar así</button>` : ''}
+                  ${r.hasJoined && ex.source === 'custom' ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-results="${esc(r.id)}">${resultsOpenFor === r.id ? 'Ocultar respuestas' : '📋 Ver respuestas'}</button>` : ''}
                 </div>
+                ${resultsOpenFor === r.id ? `<div class="bo-results">${resultsHTML(r.id)}</div>` : ''}
               </td>
             </tr>`;
           }).join('')}
@@ -393,8 +519,9 @@ export function render() {
 export function mount(root, rerender) {
   const keep = () => {
     if (!root.isConnected) return;
-    // No redibujar si la doctora tiene abierto un <select>
+    // No redibujar si la doctora tiene abierto un <select> o está editando el examen
     if (document.activeElement && document.activeElement.tagName === 'SELECT') return;
+    if (document.activeElement?.closest?.('[data-bo-import]') && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
     rerender({ keepScroll: true });
   };
 
@@ -421,14 +548,79 @@ export function mount(root, rerender) {
     pull(false);
   }, 3000);
 
-  root.addEventListener('change', (e) => {
+  const rerenderNow = () => rerender({ keepScroll: true });
+
+  const loadDraft = (parsed, title) => {
+    importDraft = {
+      title: title || 'Examen departamental R2',
+      questions: parsed.questions.map((q) => ({ ...q, options: [...q.options] })),
+      warnings: parsed.warnings || [],
+    };
+    if (!importDraft.questions.length) {
+      toast('No encontré preguntas. Revisa que cada inciso empiece con A), B), C)…');
+      importDraft = null;
+    }
+  };
+
+  root.addEventListener('input', (e) => {
+    const el = e.target.closest('[data-bo-imp]');
+    if (!el || !importDraft) return;
+    const kind = el.dataset.boImp;
+    if (kind === 'title') importDraft.title = el.value;
+    else if (kind === 'stem') importDraft.questions[Number(el.dataset.q)].stem = el.value;
+    else if (kind === 'opt') importDraft.questions[Number(el.dataset.q)].options[Number(el.dataset.o)] = el.value;
+  });
+
+  root.addEventListener('change', async (e) => {
+    const fileIn = e.target.closest('[data-bo-imp-file]');
+    if (fileIn && fileIn.files?.[0]) {
+      const file = fileIn.files[0];
+      importBusy = true;
+      rerenderNow();
+      try {
+        const parsed = await parseExamFile(file);
+        loadDraft(parsed, file.name.replace(/\.(docx|txt|md)$/i, ''));
+      } catch (err) {
+        toast(err?.message || 'No se pudo leer el archivo');
+      }
+      importBusy = false;
+      rerenderNow();
+      return;
+    }
     const sel = e.target.closest('[data-bo-cfg]');
     if (!sel) return;
     const key = sel.dataset.boCfg;
     formDraft[key] = sel.value;
+    if (key === 'source') rerenderNow();
   });
 
   root.addEventListener('click', async (e) => {
+    const pickBtn = e.target.closest('[data-bo-imp-pick]');
+    if (pickBtn && importDraft) {
+      const [qi, oi] = pickBtn.dataset.boImpPick.split(':').map(Number);
+      importDraft.questions[qi].answer = oi;
+      importDraft.questions[qi].answerFrom = 'selección manual';
+      rerenderNow();
+      return;
+    }
+    const delBtn = e.target.closest('[data-bo-imp-del]');
+    if (delBtn && importDraft) {
+      importDraft.questions.splice(Number(delBtn.dataset.boImpDel), 1);
+      rerenderNow();
+      return;
+    }
+    const resBtn = e.target.closest('[data-bo-results]');
+    if (resBtn) {
+      const id = resBtn.dataset.boResults;
+      if (resultsOpenFor === id) { resultsOpenFor = null; rerenderNow(); return; }
+      resultsOpenFor = id;
+      resultsData = null;
+      rerenderNow();
+      try { resultsData = await adminExamAction('results'); } catch { toast('No se pudieron cargar las respuestas'); }
+      rerenderNow();
+      return;
+    }
+
     const unlockBtn = e.target.closest('[data-bo-unlock]');
     if (unlockBtn) {
       playUiSfx('click');
@@ -466,8 +658,73 @@ export function mount(root, rerender) {
       return;
     }
 
+    if (act === 'import-paste-toggle') { pasteOpen = !pasteOpen; rerenderNow(); return; }
+    if (act === 'import-paste-read') {
+      const txt = root.querySelector('[data-bo-imp-paste]')?.value || '';
+      loadDraft(parseExamText(txt), 'Examen departamental R2');
+      pasteOpen = false;
+      rerenderNow();
+      return;
+    }
+    if (act === 'import-cancel') {
+      if (!window.confirm('¿Descartar los cambios del examen?')) return;
+      importDraft = null;
+      rerenderNow();
+      return;
+    }
+    if (act === 'import-edit') {
+      try {
+        const r = await adminExamAction('get_exam');
+        if (!r?.content) { toast('No se pudo abrir el examen guardado'); return; }
+        importDraft = {
+          title: r.content.title,
+          questions: r.content.questions.map((q) => ({ ...q, options: [...q.options], answerFrom: 'guardada' })),
+          warnings: [],
+        };
+      } catch { toast('No se pudo abrir el examen guardado'); }
+      rerenderNow();
+      return;
+    }
+    if (act === 'import-clear') {
+      if (!window.confirm('¿Borrar el examen cargado del servidor? No se puede deshacer.')) return;
+      try { board = await adminExamAction('clear_exam'); lastSig = boardSig(board); toast('Examen borrado'); } catch { toast('No se pudo borrar'); }
+      rerenderNow();
+      return;
+    }
+    if (act === 'import-save' && importDraft) {
+      const qsList = importDraft.questions
+        .map((q) => ({ stem: String(q.stem || '').trim(), options: q.options.map((o) => String(o || '').trim()), answer: q.answer }))
+        .filter((q) => q.stem);
+      if (qsList.some((q) => !(q.answer >= 0) || q.options.filter(Boolean).length < 2 || q.options.some((o) => !o))) {
+        toast('Cada pregunta necesita enunciado, incisos llenos y respuesta correcta');
+        return;
+      }
+      importBusy = true;
+      rerenderNow();
+      try {
+        board = await adminExamAction('upload_exam', {
+          title: importDraft.title,
+          questions: qsList,
+          device: currentBrowserInfo()?.label || '',
+        });
+        lastSig = boardSig(board);
+        importDraft = null;
+        formDraft.source = 'auto';
+        toast(`🔒 Examen guardado cifrado (${qsList.length} preguntas)`);
+      } catch (err) {
+        toast(String(err?.message || '').includes('500') ? 'El servidor no tiene configurada la clave de cifrado' : 'No se pudo guardar el examen');
+      }
+      importBusy = false;
+      rerenderNow();
+      return;
+    }
+
     if (act === 'csv') {
-      downloadCSV(buildRows());
+      let detail = null;
+      if (board.exam?.source === 'custom') {
+        try { detail = await adminExamAction('results'); } catch {}
+      }
+      downloadCSV(buildRows(), detail);
       toast('Reporte CSV descargado');
       return;
     }
@@ -479,7 +736,10 @@ export function mount(root, rerender) {
 
     if (act === 'launch') {
       const topicObj = TOPIC_OPTIONS.find((t) => t.id === formDraft.topic) || TOPIC_OPTIONS[0];
+      const custom = useCustomSource(board.exam || {});
+      if (custom && !window.confirm(`¿Iniciar «${board.exam.custom.title}» (${board.exam.custom.count} preguntas) para todos?`)) return;
       board = await adminExamAction('launch', {
+        source: custom ? 'custom' : 'banco',
         topic: topicObj.id,
         topicLabel: topicObj.label,
         questionCount: Number(formDraft.questionCount) || 15,
@@ -487,7 +747,7 @@ export function mount(root, rerender) {
         strictMode: formDraft.strictMode || '2strikes',
       });
       lastSig = boardSig(board);
-      toast(`🔴 Bloqueo activado: ${topicObj.label} lanzado a todos los R2`);
+      toast(`🔴 Bloqueo activado: ${custom ? board.exam?.topicLabel : topicObj.label} lanzado a todos los R2`);
       keep();
       return;
     }
@@ -509,6 +769,7 @@ export function mount(root, rerender) {
     }
 
     if (act === 'reset') {
+      if (!window.confirm('¿Reiniciar la sala? Se borran los resultados y bitácoras de todos (el examen cargado se conserva).')) return;
       board = await adminExamAction('reset');
       lastSig = boardSig(board);
       toast('Sala de examen reiniciada en cero');

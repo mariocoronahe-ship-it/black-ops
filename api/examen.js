@@ -1,4 +1,6 @@
 // API en vivo del Examen R2 Black Ops (Dra. Araceli Hernández Vargas · HGR 72)
+import crypto from 'node:crypto';
+
 // Separa la llave de configuración docente (EXAM_CFG) de la llave de residentes (EXAM_RES)
 // para que ningún pulso (heartbeat) de residente pueda sobrescribir el disparo del examen.
 
@@ -7,6 +9,11 @@ const KEY_RES = 'blackops:examen:res:v2';
 const CLOUD_SYNC_URL = 'https://argus-tau-three.vercel.app/api/sync';
 const CLOUD_CFG_CODE = 'BLACKOPS-EXAM-CFG-R2-HGR72-2026-V2';
 const CLOUD_RES_CODE = 'BLACKOPS-EXAM-RES-R2-HGR72-2026-V2';
+// Examen cargado por la docente (Word). Se guarda CIFRADO con BO_EXAM_SECRET (variable de entorno de Vercel,
+// no está en el repositorio), así que aunque alguien lea la nube no ve preguntas ni respuestas.
+const KEY_QS = 'blackops:examen:qs:v1';
+const CLOUD_QS_CODE = 'BLACKOPS-EXAM-QS-R2-HGR72-2026-V1';
+const MAX_QUESTIONS = 120;
 
 const ADMIN_CODES = new Set(['he', '12']);
 const VALID_R2 = new Set([
@@ -16,6 +23,8 @@ const VALID_R2 = new Set([
 
 let memExam = null;
 let memResidents = null;
+let memQsRaw = null; // documento cifrado (modo memoria)
+let qsCache = { stamp: 0, content: null };
 // Pruebas locales: BO_EXAM_MEMORY=1 guarda todo en memoria (no toca la nube compartida)
 const MEMORY_ONLY = process.env.BO_EXAM_MEMORY === '1';
 
@@ -66,6 +75,8 @@ function defaultExam() {
     // para que ningún pulso de residente las pueda pisar.
     pardons: {},
     forced: {},
+    source: 'banco', // 'banco' | 'custom' (examen cargado por la docente)
+    custom: null, // { title, count, uploadedAt, device }
   };
 }
 
@@ -130,6 +141,84 @@ async function saveResidents(cfg, residents) {
   await saveDoc(cfg, KEY_RES, CLOUD_RES_CODE, residents);
 }
 
+function secretKey() {
+  const s = process.env.BO_EXAM_SECRET;
+  if (!s) return null;
+  return crypto.createHash('sha256').update(String(s)).digest();
+}
+
+function encryptJSON(obj) {
+  const key = secretKey();
+  if (!key) {
+    if (MEMORY_ONLY) return { plain: obj };
+    throw new Error('no_secret');
+  }
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const enc = Buffer.concat([c.update(JSON.stringify(obj), 'utf8'), c.final()]);
+  return { v: 1, iv: iv.toString('base64'), tag: c.getAuthTag().toString('base64'), enc: enc.toString('base64') };
+}
+
+function decryptJSON(doc) {
+  if (!doc || typeof doc !== 'object') return null;
+  if (doc.plain) return MEMORY_ONLY ? doc.plain : null;
+  if (!doc.enc) return null;
+  const key = secretKey();
+  if (!key) return null;
+  try {
+    const d = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(doc.iv, 'base64'));
+    d.setAuthTag(Buffer.from(doc.tag, 'base64'));
+    const out = Buffer.concat([d.update(Buffer.from(doc.enc, 'base64')), d.final()]);
+    return JSON.parse(out.toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function loadQuestions(cfg, exam) {
+  const stamp = exam?.custom?.uploadedAt || 0;
+  if (!stamp) return null;
+  if (qsCache.stamp === stamp && qsCache.content) return qsCache.content;
+  const raw = await loadDoc(cfg, KEY_QS, CLOUD_QS_CODE, () => memQsRaw);
+  const content = decryptJSON(raw);
+  if (content && content.uploadedAt === stamp) qsCache = { stamp, content };
+  return content && content.uploadedAt === stamp ? content : null;
+}
+
+async function saveQuestions(cfg, content) {
+  const doc = content ? encryptJSON(content) : { cleared: Date.now() };
+  memQsRaw = doc;
+  qsCache = content ? { stamp: content.uploadedAt, content } : { stamp: 0, content: null };
+  await saveDoc(cfg, KEY_QS, CLOUD_QS_CODE, doc);
+}
+
+function cleanQuestions(list) {
+  if (!Array.isArray(list)) return null;
+  const out = [];
+  for (const q of list.slice(0, MAX_QUESTIONS)) {
+    if (!q || typeof q !== 'object') continue;
+    const stem = String(q.stem || '').trim().slice(0, 4000);
+    const options = (Array.isArray(q.options) ? q.options : []).map((o) => String(o || '').trim().slice(0, 1200)).filter(Boolean).slice(0, 8);
+    const answer = Math.round(Number(q.answer));
+    if (!stem || options.length < 2 || !(answer >= 0 && answer < options.length)) return null;
+    out.push({ stem, options, answer });
+  }
+  return out.length ? out : null;
+}
+
+function cleanPicks(list, n) {
+  if (!Array.isArray(list)) return null;
+  return Array.from({ length: n }, (_, i) => {
+    const v = list[i];
+    return Number.isInteger(v) && v >= 0 && v < 8 ? v : null;
+  });
+}
+
+function scorePicks(picks, content) {
+  if (!content || !Array.isArray(picks)) return 0;
+  return content.questions.reduce((a, q, i) => a + (picks[i] === q.answer ? 1 : 0), 0);
+}
+
 function send(res, status, obj) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -144,7 +233,7 @@ function readBody(req) {
     let raw = '';
     req.on('data', (chunk) => {
       raw += chunk;
-      if (raw.length > 32768) { req.destroy(); reject(new Error('payload_too_large')); }
+      if (raw.length > 900000) { req.destroy(); reject(new Error('payload_too_large')); }
     });
     req.on('end', () => {
       try { resolve(JSON.parse(raw || '{}')); } catch (e) { reject(e); }
@@ -183,6 +272,7 @@ function resetResidentForSession(r, exam, active) {
   r.qTotal = exam.questionCount || 15;
   r.answered = 0;
   r.events = [];
+  r.picks = null;
   r.scorePct = null;
   r.correct = 0;
   r.total = 0;
@@ -243,13 +333,14 @@ function cleanEvents(list) {
     if (!e || typeof e !== 'object' || !EVENT_KINDS.has(e.k)) continue;
     out.push({
       k: e.k,
-      q: Math.max(1, Math.min(99, Math.round(Number(e.q) || 1))),
+      q: Math.max(1, Math.min(MAX_QUESTIONS, Math.round(Number(e.q) || 1))),
       s: Math.max(0, Math.min(7200, Math.round((Number(e.s) || 0) * 10) / 10)),
       ts: Math.round(Number(e.ts) || 0),
       from: e.from == null ? null : String(e.from).slice(0, 2),
       to: e.to == null ? null : String(e.to).slice(0, 2),
       why: e.why ? String(e.why).slice(0, 60) : '',
       ref: e.ref ? String(e.ref).slice(0, 60) : '',
+      d: e.d == null ? null : Math.max(1, Math.min(MAX_QUESTIONS, Math.round(Number(e.d) || 1))),
     });
   }
   return out;
@@ -291,7 +382,11 @@ function derive(r, exam) {
 
 function deriveAll(residents, exam) {
   const o = {};
-  for (const [k, v] of Object.entries(residents || {})) o[k] = derive(v, exam);
+  for (const [k, v] of Object.entries(residents || {})) {
+    const d = derive(v, exam);
+    delete d.picks; // las respuestas elegidas solo las ve la docente (acción 'results')
+    o[k] = d;
+  }
   return o;
 }
 
@@ -311,23 +406,70 @@ export default async function handler(req, res) {
       const now = Date.now();
 
       // ---------------- ACCIONES DOCENTES (Dra. Hernández HE / Dr. Mario 12) ----------------
-      if (['launch', 'stop', 'reopen', 'reset', 'unlock_resident', 'force_finish_resident'].includes(action)) {
+      if (['launch', 'stop', 'reopen', 'reset', 'unlock_resident', 'force_finish_resident', 'upload_exam', 'get_exam', 'clear_exam', 'results'].includes(action)) {
         const code = String(body?.code || '').trim().toLowerCase();
         if (!ADMIN_CODES.has(code)) return send(res, 403, { error: 'forbidden' });
 
         const [exam, residents] = await Promise.all([loadExam(cfg), loadResidents(cfg)]);
         const reply = (ex, rs) => send(res, 200, { ok: true, exam: ex, residents: deriveAll(rs, ex) });
 
+        if (action === 'upload_exam') {
+          const questions = cleanQuestions(body.questions);
+          if (!questions) return send(res, 400, { error: 'bad_questions' });
+          if (exam.active) return send(res, 409, { error: 'exam_active' });
+          const title = String(body.title || 'Examen departamental R2').trim().slice(0, 80) || 'Examen departamental R2';
+          const content = { title, questions, uploadedAt: now };
+          try {
+            await saveQuestions(cfg, content);
+          } catch (e) {
+            return send(res, 500, { error: String(e.message || e) === 'no_secret' ? 'no_secret' : 'save_failed' });
+          }
+          exam.custom = { title, count: questions.length, uploadedAt: now, device: String(body.device || '').slice(0, 48) };
+          await saveExam(cfg, exam);
+          return reply(exam, residents);
+        }
+
+        if (action === 'get_exam') {
+          const content = await loadQuestions(cfg, exam);
+          return send(res, 200, { ok: true, exam, content });
+        }
+
+        if (action === 'clear_exam') {
+          if (exam.active && exam.source === 'custom') return send(res, 409, { error: 'exam_active' });
+          await saveQuestions(cfg, null);
+          exam.custom = null;
+          if (exam.source === 'custom') exam.source = 'banco';
+          await saveExam(cfg, exam);
+          return reply(exam, residents);
+        }
+
+        if (action === 'results') {
+          const content = await loadQuestions(cfg, exam);
+          const picks = {};
+          for (const r of Object.values(residents)) {
+            if (r.sessionId === exam.sessionId && Array.isArray(r.picks)) picks[r.id] = r.picks;
+          }
+          return send(res, 200, { ok: true, exam, content: exam.source === 'custom' ? content : null, picks });
+        }
+
         if (action === 'launch') {
           const sessionId = `ex-${now}`;
-          const qCount = Math.max(5, Math.min(40, Number(body.questionCount) || 15));
+          const useCustom = body.source === 'custom';
+          let customContent = null;
+          if (useCustom) {
+            customContent = await loadQuestions(cfg, exam);
+            if (!customContent) return send(res, 409, { error: 'no_custom_exam' });
+          }
+          const qCount = useCustom ? customContent.questions.length : Math.max(5, Math.min(40, Number(body.questionCount) || 15));
           const durMin = Math.max(5, Math.min(90, Number(body.durationMin) || 20));
           const newExam = {
             active: true,
             ended: false,
             sessionId,
-            topic: String(body.topic || 'colon').slice(0, 32),
-            topicLabel: String(body.topicLabel || 'Colon y apéndice (R2)').slice(0, 80),
+            topic: useCustom ? 'custom' : String(body.topic || 'colon').slice(0, 32),
+            topicLabel: useCustom ? customContent.title : String(body.topicLabel || 'Colon y apéndice (R2)').slice(0, 80),
+            source: useCustom ? 'custom' : 'banco',
+            custom: exam.custom || null,
             questionCount: qCount,
             durationMin: durMin,
             strictMode: ['2strikes', '1strike', 'warn'].includes(body.strictMode) ? body.strictMode : '2strikes',
@@ -366,6 +508,8 @@ export default async function handler(req, res) {
 
         if (action === 'reset') {
           const freshExam = defaultExam();
+          // El examen cargado por la docente sobrevive al reinicio (solo se borra con «Borrar examen»)
+          freshExam.custom = exam.custom || null;
           const freshRes = {};
           await Promise.all([saveExam(cfg, freshExam), saveResidents(cfg, freshRes)]);
           return reply(freshExam, freshRes);
@@ -417,25 +561,55 @@ export default async function handler(req, res) {
           r.qIndex = Math.max(0, Number(body.qIndex) || 0);
           r.qTotal = Math.max(1, Number(body.qTotal) || exam.questionCount || 15);
           r.answered = Math.max(0, Number(body.answered) || 0);
-          if (typeof body.correct === 'number') r.correct = Math.max(0, Math.round(body.correct));
+          if (exam.source !== 'custom' && typeof body.correct === 'number') r.correct = Math.max(0, Math.round(body.correct));
         }
+      }
+
+      // Examen cargado por la docente: la calificación se calcula aquí; el celular nunca recibe las respuestas.
+      let customContent = null;
+      if (sameSession && exam.active && exam.source === 'custom') {
+        customContent = await loadQuestions(cfg, exam);
+        const n = customContent ? customContent.questions.length : (exam.questionCount || 0);
+        const src = action === 'submit' ? body.picks : (body.submitted?.picks ?? body.picks);
+        const picks = r.state !== 'entregado' ? cleanPicks(src, n) : null;
+        if (picks) {
+          r.picks = picks;
+          r.answered = picks.filter((v) => v != null).length;
+          r.qTotal = n;
+          r.correct = scorePicks(picks, customContent);
+        }
+      }
+
+      if (action === 'questions') {
+        if (!(exam.active && exam.source === 'custom' && sameSession) || !customContent) {
+          return send(res, 409, { error: 'no_questions' });
+        }
+        if (r.browser && !r.browser.allowed) return send(res, 403, { error: 'browser_not_allowed' });
+        await saveResidents(cfg, residents);
+        return send(res, 200, {
+          ok: true,
+          exam,
+          me: derive(r, exam),
+          questions: customContent.questions.map((q) => ({ stem: q.stem, options: q.options })),
+        });
       }
 
       const submitted = action === 'submit' || (sameSession && body.submitted && typeof body.submitted === 'object');
       if (submitted && sameSession && r.state !== 'entregado') {
         const src = action === 'submit' ? body : body.submitted;
-        const correct = Math.max(0, Math.round(Number(src.correct) || 0));
-        const total = Math.max(1, Math.round(Number(src.total) || exam.questionCount || 15));
+        const isCustom = exam.source === 'custom' && customContent;
+        const correct = isCustom ? r.correct || 0 : Math.max(0, Math.round(Number(src.correct) || 0));
+        const total = isCustom ? customContent.questions.length : Math.max(1, Math.round(Number(src.total) || exam.questionCount || 15));
         r.correct = correct;
         r.total = total;
         r.scorePct = Math.max(0, Math.min(100, Math.round((correct / total) * 100)));
-        r.answered = Math.max(0, Math.round(Number(src.answered ?? total)));
+        r.answered = isCustom ? r.answered || 0 : Math.max(0, Math.round(Number(src.answered ?? total)));
         r.qIndex = total;
         r.state = 'entregado';
         r.submittedAt = now;
       }
 
-      if (!['heartbeat', 'progress', 'strike', 'submit'].includes(action)) return send(res, 400, { error: 'unknown_action' });
+      if (!['heartbeat', 'progress', 'strike', 'submit', 'questions'].includes(action)) return send(res, 400, { error: 'unknown_action' });
 
       if (r.state !== 'entregado') {
         if (!exam.active) r.state = 'navegando';

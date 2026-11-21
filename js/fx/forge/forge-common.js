@@ -1,9 +1,9 @@
 // Piezas compartidas por los escenarios «El Ojo de CALOT» (residentes) y «Núcleo de obsidiana» (adscrita):
 // renderer, entorno de reflejos para metal/cristal, niebla y polvo rojos, y posprocesado con bloom.
 
-import { QUAD_VERT, BRIGHT_FRAG, BLUR_FRAG, MIST_VERT, MIST_FRAG, DUST_VERT, DUST_FRAG } from '../androide/android-shaders.js?v=20261121y';
-import { buildNoiseMap, buildDotMap } from '../androide/android-textures.js?v=20261121y';
-import { rng } from '../androide/android-timeline.js?v=20261121y';
+import { QUAD_VERT, BRIGHT_FRAG, BLUR_FRAG, MIST_VERT, MIST_FRAG, DUST_VERT, DUST_FRAG } from '../androide/android-shaders.js?v=20261121z';
+import { buildNoiseMap, buildDotMap } from '../androide/android-textures.js?v=20261121z';
+import { rng } from '../androide/android-timeline.js?v=20261121z';
 
 export const QUALITY = [
   { level: 0, dpr: 0.75, msaa: 0, bloom: 0, haze: 2, dust: 120, aber: false },
