@@ -1,7 +1,7 @@
 // Hojas por subtema de los módulos R2 (piel, quemaduras, neoplasias, pared, esófago, estómago, delgado, colon, recto).
 // Si un módulo aparece aquí, sus hojas reemplazan a las originales de temario_aprende_base.js. Ver hoja.js.
 // Conserva el texto citado de ARGOS-MED y las síntesis/casos de Drive, reacomodados en una hoja por subtema, y lo amplía.
-import { sheet } from './hoja.js?v=20261121v';
+import { sheet } from './hoja.js?v=20261121w';
 
 export const R2 = {
   "piel": [

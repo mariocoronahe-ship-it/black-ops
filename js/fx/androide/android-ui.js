@@ -1,4 +1,4 @@
-import { cueList, heartRate, BEEPS } from './android-timeline.js?v=20261121v';
+import { cueList, heartRate, BEEPS } from './android-timeline.js?v=20261121w';
 
 const STYLE_ID = 'ci-an-style';
 const BAR_RATIO = 2.39;

@@ -5,11 +5,11 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261121v';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121v';
+import { icon } from '../icons.js?v=20261121w';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121w';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261121v';
-import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121v';
+import { playUiSfx } from '../fx/audio.js?v=20261121w';
+import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121w';
 
 export const section = 'biblio';
 

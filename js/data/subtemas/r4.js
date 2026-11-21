@@ -1,5 +1,5 @@
 // R4 · vascular, tórax y trasplante: desarrollo completo por subtema. Ver hoja.js.
-import { sheet } from './hoja.js?v=20261121v';
+import { sheet } from './hoja.js?v=20261121w';
 
 export const R4 = {
   'ap-r4-vascular': [

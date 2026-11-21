@@ -1,6 +1,6 @@
 // Hojas por subtema de los módulos R2 de Estómago/Duodeno e Intestino Delgado.
 // Generadas a partir de temario_aprende_base.js, temario_puem.js y los resúmenes detallados/puntos clave R2.
-import { sheet } from './hoja.js?v=20261121v';
+import { sheet } from './hoja.js?v=20261121w';
 
 export const R2_ESTOMAGO_DELGADO = {
   estomago: [

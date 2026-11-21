@@ -1,5 +1,5 @@
 // R3 · páncreas: una hoja por subtema (desarrollo completo). Ver hoja.js.
-import { sheet } from './hoja.js?v=20261121v';
+import { sheet } from './hoja.js?v=20261121w';
 
 export const R3C = {
   'ap-r3-pancreas': [

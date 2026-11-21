@@ -5,13 +5,13 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261121v';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121v';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121v';
+import { store, questions, loadStoreData } from '../store.js?v=20261121w';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121w';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121w';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121v';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121v';
-import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121v';
+import { playUiSfx } from './audio.js?v=20261121w';
+import { unlockPortalAudio } from './portal-audio.js?v=20261121w';
+import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121w';
 
 const ENDPOINT = '/api/examen';
 
@@ -82,30 +82,40 @@ export async function adminExamAction(action, extra = {}) {
 
 let cachedPool = null;
 async function buildQuestionPool(topic, count, seedStr) {
-  await loadStoreData();
   if (!cachedPool) {
-    let puemQs = [];
+    const items = [];
     try {
-      const m = await import('../data/puem_examenes.js?v=20261121v');
-      puemQs = (m.PUEM_QUESTIONS || []).filter((q) => q.year === 'R2' || !q.year);
+      const [argos, v1, v2] = await Promise.all([
+        import('../data/juegos_argos.js?v=20261121w'),
+        import('../data/juegos_drive_v1.js?v=20261121w'),
+        import('../data/juegos_drive_v2.js?v=20261121w'),
+      ]);
+      const rawBlitz = [
+        ...(argos.EXTRA_BLITZ_QUESTIONS || []),
+        ...(v1.DRIVE_V1?.blitz || []),
+        ...(v2.DRIVE_V2?.blitz || []),
+      ];
+      for (const b of rawBlitz) {
+        const opts = b.opts || b.options || [];
+        if (opts.length < 2) continue;
+        items.push({
+          id: b.id || '',
+          topicId: b.topicId || b.tema || 'todos_r2',
+          stem: b.q || b.stem || b.prompt || '',
+          options: opts,
+          answer: typeof b.ans === 'number' ? b.ans : (typeof b.answer === 'number' ? b.answer : 0),
+          explanation: b.exp || b.explanation || '',
+        });
+      }
     } catch {}
-    const storeQs = (questions() || []).map((q) => ({
-      id: q.id,
-      topicId: q.topicId || 'todos_r2',
-      stem: q.q,
-      options: q.options || [],
-      answer: typeof q.answer === 'number' ? q.answer : 0,
-      explanation: q.exp || '',
-    })).filter((q) => q.options.length >= 2);
-    cachedPool = [...storeQs, ...puemQs];
+    cachedPool = items;
   }
 
   let filtered = cachedPool;
   if (topic && topic !== 'todos_r2') {
     const byTopic = cachedPool.filter((q) =>
       q.topicId === topic ||
-      String(q.sistema || '').toLowerCase().includes(topic) ||
-      String(q.subtema || '').toLowerCase().includes(topic)
+      String(q.topicId || '').toLowerCase().includes(topic)
     );
     if (byTopic.length >= 5) filtered = byTopic;
   }
@@ -273,7 +283,7 @@ async function launchLockdownOverlay(exam, initialMe) {
     <div class="bo-takeover-stage" data-bo-takeover>
       <div class="bo-takeover-badge mono">⚠️ PROTOCOLO BLACK OPS · INTERVENCIÓN DOCENTE</div>
       <div class="bo-takeover-eye">
-        <img src="assets/calot-hero.png?v=20261121v" alt="" width="112" height="112" />
+        <img src="assets/calot-hero.png?v=20261121w" alt="" width="112" height="112" />
       </div>
       <h1>BLOQUEO GENERAL <em>ACTIVADO</em></h1>
       <p class="bo-takeover-lead">La <b>Dra. Araceli Hernández Vargas</b> ha suspendido la navegación libre e iniciado el examen de <b>${esc(exam.topicLabel || 'Cirugía General R2')}</b>.</p>

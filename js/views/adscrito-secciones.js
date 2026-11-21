@@ -8,12 +8,12 @@
    Lo que decide el adscrito se guarda en este navegador (calot:adscrito).
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261121v';
-import { store, todayISO } from '../store.js?v=20261121v';
+import { icon } from '../icons.js?v=20261121w';
+import { store, todayISO } from '../store.js?v=20261121w';
 // El panel docente sigue los módulos R2 originales (sus calificaciones y mapas de calor usan esos ids)
-import { TEMARIO_APRENDE_BASE as TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261121v';
+import { TEMARIO_APRENDE_BASE as TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261121w';
 import { esc } from '../ui.js';
-import { threadHTML, deliveryMode, ADSCRITA } from '../mensajes.js?v=20261121v';
+import { threadHTML, deliveryMode, ADSCRITA } from '../mensajes.js?v=20261121w';
 
 const KEY = 'calot:adscrito';
 export function loadState() {

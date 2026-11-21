@@ -3,7 +3,7 @@
 // sutil y presencia media, con un estante que suaviza sibilancias. Baja las camas mientras habla.
 // Respeta el silencio de los portales y tiene su propio interruptor (calot:voz).
 
-import { getEngine, isPortalAudioMuted, duck, unlockPortalAudio } from './portal-audio.js?v=20261121v';
+import { getEngine, isPortalAudioMuted, duck, unlockPortalAudio } from './portal-audio.js?v=20261121w';
 
 const BASE = new URL('../../assets/voz/', import.meta.url);
 const VOICE_KEY = 'calot:voz';
