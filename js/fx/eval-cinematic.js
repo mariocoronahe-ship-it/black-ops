@@ -3,8 +3,8 @@
 //  · Pantalla negra con código rojo rápido, flashes robóticos, voz «Calculando» + riser oscuro de 30 s.
 //  · Impacto sincronizado al PUM (23.45 s) → calificación gigante en pantalla → ambiente de terror en loop + voz de burla.
 import { esc } from '../ui.js';
-import { isVoiceOn, stopVoice } from './voice.js?v=20261121u';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121u';
+import { isVoiceOn, stopVoice } from './voice.js?v=20261121v';
+import { unlockPortalAudio } from './portal-audio.js?v=20261121v';
 
 const BASE = new URL('../../assets/voz/', import.meta.url);
 

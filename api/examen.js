@@ -1,17 +1,21 @@
 // API en vivo del Examen R2 Black Ops (Dra. Araceli Hernández Vargas · HGR 72)
-// Gestiona el estado del lobby (residentes navegando), el disparo de bloqueo simultáneo,
-// el monitoreo anti-trampa (salidas de pantalla) y la entrega de calificaciones.
+// Separa la llave de configuración docente (EXAM_CFG) de la llave de residentes (EXAM_RES)
+// para que ningún pulso (heartbeat) de residente pueda sobrescribir el disparo del examen.
 
-const KEY = 'blackops:examen:v1';
+const KEY_CFG = 'blackops:examen:cfg:v2';
+const KEY_RES = 'blackops:examen:res:v2';
 const CLOUD_SYNC_URL = 'https://argus-tau-three.vercel.app/api/sync';
-const CLOUD_SYNC_CODE = 'BLACKOPS-EXAMEN-R2-HGR72-2026-V1';
+const CLOUD_CFG_CODE = 'BLACKOPS-EXAM-CFG-R2-HGR72-2026-V2';
+const CLOUD_RES_CODE = 'BLACKOPS-EXAM-RES-R2-HGR72-2026-V2';
+
 const ADMIN_CODES = new Set(['he', '12']);
 const VALID_R2 = new Set([
   'jesus', 'alina', 'angel_g', 'diana', 'alejandro', 'luis', 'angel_c',
   'isahy', 'ulises', 'delia', 'dulce', 'tiffany', 'marco', 'r2_mario',
 ]);
 
-let memState = null;
+let memExam = null;
+let memResidents = null;
 
 function redisEnv() {
   const url =
@@ -41,75 +45,78 @@ async function redis(cfg, ...cmd) {
   return data.result;
 }
 
-function defaultBoard() {
+function defaultExam() {
   return {
-    exam: {
-      active: false,
-      ended: false,
-      sessionId: 'lobby-inicial',
-      topic: 'colon',
-      topicLabel: 'Colon y apéndice (R2)',
-      questionCount: 15,
-      durationMin: 20,
-      strictMode: '2strikes', // '2strikes' | '1strike' | 'warn'
-      startedAt: 0,
-      endedAt: 0,
-    },
-    residents: {},
+    active: false,
+    ended: false,
+    sessionId: 'lobby-inicial',
+    topic: 'colon',
+    topicLabel: 'Colon y apéndice (R2)',
+    questionCount: 15,
+    durationMin: 20,
+    strictMode: '2strikes',
+    startedAt: 0,
+    endedAt: 0,
   };
 }
 
-function normalizeBoard(parsed) {
-  if (!parsed || typeof parsed !== 'object') return defaultBoard();
-  return {
-    exam: { ...defaultBoard().exam, ...(parsed.exam || {}) },
-    residents: parsed.residents && typeof parsed.residents === 'object' ? parsed.residents : {},
-  };
-}
-
-async function loadState(cfg) {
+async function loadDoc(cfg, redisKey, syncCode, fallbackFn) {
   if (cfg) {
     try {
-      const raw = await redis(cfg, 'GET', KEY);
-      if (raw) {
-        memState = normalizeBoard(JSON.parse(raw));
-        return memState;
-      }
+      const raw = await redis(cfg, 'GET', redisKey);
+      if (raw) return JSON.parse(raw);
     } catch {}
   }
   try {
     const r = await fetch(CLOUD_SYNC_URL, {
       method: 'GET',
-      headers: { 'x-sync-code': CLOUD_SYNC_CODE },
+      headers: { 'x-sync-code': syncCode },
       cache: 'no-store',
     });
     if (r.ok) {
       const j = await r.json();
-      if (j && j.data && typeof j.data === 'object') {
-        memState = normalizeBoard(j.data);
-        return memState;
-      }
+      if (j && j.data && typeof j.data === 'object') return j.data;
     }
   } catch {}
-  if (!memState) memState = defaultBoard();
-  return memState;
+  return fallbackFn();
 }
 
-async function saveState(cfg, st) {
-  memState = st;
+async function saveDoc(cfg, redisKey, syncCode, data) {
   if (cfg) {
-    try { await redis(cfg, 'SET', KEY, JSON.stringify(st)); return; } catch {}
+    try { await redis(cfg, 'SET', redisKey, JSON.stringify(data)); return; } catch {}
   }
   try {
     await fetch(CLOUD_SYNC_URL, {
       method: 'PUT',
       headers: {
-        'x-sync-code': CLOUD_SYNC_CODE,
+        'x-sync-code': syncCode,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ data: st }),
+      body: JSON.stringify({ data }),
     });
   } catch {}
+}
+
+async function loadExam(cfg) {
+  const raw = await loadDoc(cfg, KEY_CFG, CLOUD_CFG_CODE, () => memExam || defaultExam());
+  memExam = { ...defaultExam(), ...(raw || {}) };
+  return memExam;
+}
+
+async function saveExam(cfg, ex) {
+  memExam = ex;
+  await saveDoc(cfg, KEY_CFG, CLOUD_CFG_CODE, ex);
+}
+
+async function loadResidents(cfg) {
+  const raw = await loadDoc(cfg, KEY_RES, CLOUD_RES_CODE, () => memResidents || {});
+  memResidents = raw && typeof raw === 'object' ? raw : {};
+  return memResidents;
+}
+
+async function saveResidents(cfg, residents) {
+  memResidents = residents;
+  await saveDoc(cfg, KEY_RES, CLOUD_RES_CODE, residents);
 }
 
 function send(res, status, obj) {
@@ -135,16 +142,16 @@ function readBody(req) {
   });
 }
 
-function ensureResident(st, id, name) {
-  const cur = st.residents[id] || {
+function ensureResident(residents, exam, id, name) {
+  const cur = residents[id] || {
     id,
     name: String(name || id).slice(0, 48),
-    state: 'navegando', // 'navegando' | 'en_examen' | 'bloqueado_trampa' | 'entregado'
+    state: 'navegando',
     section: 'Inicio',
     lastSeen: 0,
     joinedAt: Date.now(),
     qIndex: 0,
-    qTotal: st.exam.questionCount || 15,
+    qTotal: exam.questionCount || 15,
     answered: 0,
     strikes: 0,
     pardonedStrikes: 0,
@@ -154,10 +161,10 @@ function ensureResident(st, id, name) {
     correct: 0,
     total: 0,
     submittedAt: 0,
-    sessionId: st.exam.sessionId,
+    sessionId: exam.sessionId,
   };
   if (name) cur.name = String(name).slice(0, 48);
-  st.residents[id] = cur;
+  residents[id] = cur;
   return cur;
 }
 
@@ -166,15 +173,14 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const st = await loadState(cfg);
-      return send(res, 200, { configured: true, ...st, serverNow: Date.now() });
+      const [exam, residents] = await Promise.all([loadExam(cfg), loadResidents(cfg)]);
+      return send(res, 200, { configured: true, exam, residents, serverNow: Date.now() });
     }
 
     if (req.method === 'POST') {
       let body;
       try { body = await readBody(req); } catch { return send(res, 400, { error: 'bad_json' }); }
       const action = String(body?.action || '');
-      const st = await loadState(cfg);
       const now = Date.now();
 
       // ---------------- ACCIONES DOCENTES (Dra. Hernández HE / Dr. Mario 12) ----------------
@@ -182,11 +188,13 @@ export default async function handler(req, res) {
         const code = String(body?.code || '').trim().toLowerCase();
         if (!ADMIN_CODES.has(code)) return send(res, 403, { error: 'forbidden' });
 
+        const [exam, residents] = await Promise.all([loadExam(cfg), loadResidents(cfg)]);
+
         if (action === 'launch') {
           const sessionId = `ex-${now}`;
           const qCount = Math.max(5, Math.min(40, Number(body.questionCount) || 15));
           const durMin = Math.max(5, Math.min(90, Number(body.durationMin) || 20));
-          st.exam = {
+          const newExam = {
             active: true,
             ended: false,
             sessionId,
@@ -198,7 +206,7 @@ export default async function handler(req, res) {
             startedAt: now,
             endedAt: 0,
           };
-          for (const r of Object.values(st.residents)) {
+          for (const r of Object.values(residents)) {
             r.sessionId = sessionId;
             r.state = (now - (r.lastSeen || 0) < 120000) ? 'en_examen' : r.state;
             r.qIndex = 0;
@@ -213,79 +221,83 @@ export default async function handler(req, res) {
             r.total = 0;
             r.submittedAt = 0;
           }
-          await saveState(cfg, st);
-          return send(res, 200, { ok: true, ...st });
+          await Promise.all([saveExam(cfg, newExam), saveResidents(cfg, residents)]);
+          return send(res, 200, { ok: true, exam: newExam, residents });
         }
 
         if (action === 'stop') {
-          st.exam.active = false;
-          st.exam.ended = true;
-          st.exam.endedAt = now;
-          await saveState(cfg, st);
-          return send(res, 200, { ok: true, ...st });
+          exam.active = false;
+          exam.ended = true;
+          exam.endedAt = now;
+          await saveExam(cfg, exam);
+          return send(res, 200, { ok: true, exam, residents });
         }
 
         if (action === 'reopen') {
-          st.exam.active = false;
-          st.exam.ended = false;
-          st.exam.endedAt = 0;
-          for (const r of Object.values(st.residents)) {
+          exam.active = false;
+          exam.ended = false;
+          exam.endedAt = 0;
+          for (const r of Object.values(residents)) {
             if (r.state !== 'entregado') {
               r.state = 'navegando';
               r.locked = false;
             }
           }
-          await saveState(cfg, st);
-          return send(res, 200, { ok: true, ...st });
+          await Promise.all([saveExam(cfg, exam), saveResidents(cfg, residents)]);
+          return send(res, 200, { ok: true, exam, residents });
         }
 
         if (action === 'reset') {
-          const fresh = defaultBoard();
-          await saveState(cfg, fresh);
-          return send(res, 200, { ok: true, ...fresh });
+          const freshExam = defaultExam();
+          const freshRes = {};
+          await Promise.all([saveExam(cfg, freshExam), saveResidents(cfg, freshRes)]);
+          return send(res, 200, { ok: true, exam: freshExam, residents: freshRes });
         }
 
         if (action === 'unlock_resident') {
           const tid = String(body.targetId || '');
-          if (st.residents[tid]) {
-            st.residents[tid].locked = false;
-            st.residents[tid].pardonedStrikes = st.residents[tid].strikes || 0;
-            if (st.residents[tid].state === 'bloqueado_trampa') {
-              st.residents[tid].state = 'en_examen';
+          if (residents[tid]) {
+            residents[tid].locked = false;
+            residents[tid].pardonedStrikes = residents[tid].strikes || 0;
+            if (residents[tid].state === 'bloqueado_trampa') {
+              residents[tid].state = 'en_examen';
             }
-            await saveState(cfg, st);
+            await saveResidents(cfg, residents);
           }
-          return send(res, 200, { ok: true, ...st });
+          return send(res, 200, { ok: true, exam, residents });
         }
 
         if (action === 'force_finish_resident') {
           const tid = String(body.targetId || '');
-          const r = st.residents[tid];
+          const r = residents[tid];
           if (r) {
             r.locked = false;
             r.state = 'entregado';
             r.submittedAt = now;
             if (r.scorePct == null) {
-              const tot = Math.max(1, r.qTotal || st.exam.questionCount || 15);
+              const tot = Math.max(1, r.qTotal || exam.questionCount || 15);
               r.total = tot;
               r.scorePct = Math.round(((r.correct || 0) / tot) * 100);
             }
-            await saveState(cfg, st);
+            await saveResidents(cfg, residents);
           }
-          return send(res, 200, { ok: true, ...st });
+          return send(res, 200, { ok: true, exam, residents });
         }
       }
 
       // ---------------- ACCIONES DE RESIDENTES R2 ----------------
       const id = String(body?.id || '').trim();
       if (!VALID_R2.has(id)) return send(res, 400, { error: 'invalid_resident' });
-      const r = ensureResident(st, id, body.name);
+
+      // Los residentes NUNCA escriben KEY_CFG, solo la leen y actualizan su entrada en KEY_RES
+      const [exam, residents] = await Promise.all([loadExam(cfg), loadResidents(cfg)]);
+      const r = ensureResident(residents, exam, id, body.name);
       r.lastSeen = now;
 
-      if (r.sessionId !== st.exam.sessionId) {
-        r.sessionId = st.exam.sessionId;
+      if (r.sessionId !== exam.sessionId) {
+        r.sessionId = exam.sessionId;
         r.qIndex = 0;
-        r.qTotal = st.exam.questionCount || 15;
+        r.qTotal = exam.questionCount || 15;
         r.answered = 0;
         r.strikes = 0;
         r.pardonedStrikes = 0;
@@ -295,34 +307,34 @@ export default async function handler(req, res) {
         r.correct = 0;
         r.total = 0;
         r.submittedAt = 0;
-        r.state = st.exam.active ? 'en_examen' : 'navegando';
+        r.state = exam.active ? 'en_examen' : 'navegando';
       }
 
       if (action === 'heartbeat') {
         if (body.section) r.section = String(body.section).slice(0, 40);
-        if (!st.exam.active && r.state !== 'entregado') {
+        if (!exam.active && r.state !== 'entregado') {
           r.state = 'navegando';
-        } else if (st.exam.active && r.state === 'navegando') {
+        } else if (exam.active && r.state === 'navegando') {
           r.state = 'en_examen';
         }
-        await saveState(cfg, st);
-        return send(res, 200, { ok: true, exam: st.exam, me: r, serverNow: now });
+        await saveResidents(cfg, residents);
+        return send(res, 200, { ok: true, exam, me: r, serverNow: now });
       }
 
       if (action === 'progress') {
         if (r.state !== 'entregado') {
           r.state = r.locked ? 'bloqueado_trampa' : 'en_examen';
           r.qIndex = Math.max(0, Number(body.qIndex) || 0);
-          r.qTotal = Math.max(1, Number(body.qTotal) || st.exam.questionCount || 15);
+          r.qTotal = Math.max(1, Number(body.qTotal) || exam.questionCount || 15);
           r.answered = Math.max(0, Number(body.answered) || 0);
           if (typeof body.correct === 'number') r.correct = Math.max(0, Math.round(body.correct));
         }
-        await saveState(cfg, st);
-        return send(res, 200, { ok: true, exam: st.exam, me: r, serverNow: now });
+        await saveResidents(cfg, residents);
+        return send(res, 200, { ok: true, exam, me: r, serverNow: now });
       }
 
       if (action === 'strike') {
-        if (st.exam.active && r.state !== 'entregado') {
+        if (exam.active && r.state !== 'entregado') {
           r.strikes = (r.strikes || 0) + 1;
           const awaySec = Math.max(1, Math.min(3600, Math.round(Number(body.awaySec) || 1)));
           const qNum = Math.max(1, Math.round(Number(body.qNum) || (r.qIndex + 1) || 1));
@@ -330,19 +342,19 @@ export default async function handler(req, res) {
           r.strikeLog = [{ ts: now, qNum, awaySec, reason }, ...(r.strikeLog || [])].slice(0, 15);
 
           const effectiveStrikes = r.strikes - (r.pardonedStrikes || 0);
-          const limit = st.exam.strictMode === '1strike' ? 1 : st.exam.strictMode === '2strikes' ? 2 : 999;
+          const limit = exam.strictMode === '1strike' ? 1 : exam.strictMode === '2strikes' ? 2 : 999;
           if (effectiveStrikes >= limit) {
             r.locked = true;
             r.state = 'bloqueado_trampa';
           }
-          await saveState(cfg, st);
+          await saveResidents(cfg, residents);
         }
-        return send(res, 200, { ok: true, exam: st.exam, me: r, serverNow: now });
+        return send(res, 200, { ok: true, exam, me: r, serverNow: now });
       }
 
       if (action === 'submit') {
         const correct = Math.max(0, Math.round(Number(body.correct) || 0));
-        const total = Math.max(1, Math.round(Number(body.total) || st.exam.questionCount || 15));
+        const total = Math.max(1, Math.round(Number(body.total) || exam.questionCount || 15));
         const scorePct = Math.max(0, Math.min(100, Math.round((correct / total) * 100)));
         r.correct = correct;
         r.total = total;
@@ -352,8 +364,8 @@ export default async function handler(req, res) {
         r.locked = false;
         r.state = 'entregado';
         r.submittedAt = now;
-        await saveState(cfg, st);
-        return send(res, 200, { ok: true, exam: st.exam, me: r, serverNow: now });
+        await saveResidents(cfg, residents);
+        return send(res, 200, { ok: true, exam, me: r, serverNow: now });
       }
 
       return send(res, 400, { error: 'unknown_action' });
@@ -361,6 +373,6 @@ export default async function handler(req, res) {
 
     return send(res, 405, { error: 'method_not_allowed' });
   } catch (e) {
-    return send(res, 200, { configured: false, ...(memState || defaultBoard()), serverNow: Date.now() });
+    return send(res, 200, { configured: false, exam: memExam || defaultExam(), residents: memResidents || {}, serverNow: Date.now() });
   }
 }

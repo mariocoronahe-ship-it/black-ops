@@ -5,11 +5,11 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261121u';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121u';
+import { icon } from '../icons.js?v=20261121v';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121v';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261121u';
-import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121u';
+import { playUiSfx } from '../fx/audio.js?v=20261121v';
+import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121v';
 
 export const section = 'biblio';
 
@@ -51,6 +51,18 @@ let formDraft = {
   strictMode: '2strikes',
 };
 let pollTimer = null;
+let lastSig = '';
+let firstPullDone = false;
+
+function boardSig(b) {
+  try {
+    const ex = b?.exam || {};
+    const rs = Object.values(b?.residents || {}).map((r) => `${r.id}:${r.state}:${r.section}:${r.answered}:${r.strikes}:${r.locked}:${r.scorePct}`).sort().join('|');
+    return `${ex.active}:${ex.sessionId}:${ex.topic}:${ex.questionCount}:${rs}`;
+  } catch {
+    return '';
+  }
+}
 
 function formatAgo(ts) {
   if (!ts) return 'Sin entrar aún';
@@ -341,21 +353,27 @@ export function mount(root, rerender) {
     rerender({ keepScroll: true });
   };
 
-  const pull = async () => {
+  const pull = async (forceRender = false) => {
     try {
       const data = await fetchExamBoard();
       if (data?.exam) {
+        const nextSig = boardSig(data);
+        const changed = nextSig !== lastSig;
         board = data;
-        keep();
+        lastSig = nextSig;
+        if (changed || forceRender) keep();
       }
     } catch {}
   };
 
-  pull();
+  if (!firstPullDone) {
+    firstPullDone = true;
+    pull(true);
+  }
   clearInterval(pollTimer);
   pollTimer = setInterval(() => {
     if (!root.isConnected) { clearInterval(pollTimer); pollTimer = null; return; }
-    pull();
+    pull(false);
   }, 3000);
 
   root.addEventListener('change', (e) => {
@@ -418,6 +436,7 @@ export function mount(root, rerender) {
         durationMin: Number(formDraft.durationMin) || 20,
         strictMode: formDraft.strictMode || '2strikes',
       });
+      lastSig = boardSig(board);
       toast(`🔴 Bloqueo activado: ${topicObj.label} lanzado a todos los R2`);
       keep();
       return;
@@ -425,6 +444,7 @@ export function mount(root, rerender) {
 
     if (act === 'reopen') {
       board = await adminExamAction('reopen');
+      lastSig = boardSig(board);
       toast('Bloqueo suspendido: los R2 pueden navegar de nuevo');
       keep();
       return;
@@ -432,6 +452,7 @@ export function mount(root, rerender) {
 
     if (act === 'stop') {
       board = await adminExamAction('stop');
+      lastSig = boardSig(board);
       toast('Examen finalizado para todo el grupo');
       keep();
       return;
@@ -439,6 +460,7 @@ export function mount(root, rerender) {
 
     if (act === 'reset') {
       board = await adminExamAction('reset');
+      lastSig = boardSig(board);
       toast('Sala de examen reiniciada en cero');
       keep();
     }

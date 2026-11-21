@@ -3,7 +3,7 @@
    Núcleo animado central + 6 módulos en órbita + "¿Dónde estás flojo?"
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261121u';
+import { icon } from '../icons.js?v=20261121v';
 import {
   store,
   streak,
@@ -14,15 +14,15 @@ import {
   questions,
   todayISO,
   getTopicDomainProgress,
-} from '../store.js?v=20261121u';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261121u';
-import { CATALOGO_RECURSOS as CATALOGO_COMPLETO } from '../data/catalogo_recursos.js?v=20261121u';
-import { renderPulsingCoreHTML } from '../fx/boot.js?v=20261121u';
-import { playUiSfx } from '../fx/audio.js?v=20261121u';
+} from '../store.js?v=20261121v';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261121v';
+import { CATALOGO_RECURSOS as CATALOGO_COMPLETO } from '../data/catalogo_recursos.js?v=20261121v';
+import { renderPulsingCoreHTML } from '../fx/boot.js?v=20261121v';
+import { playUiSfx } from '../fx/audio.js?v=20261121v';
 import { esc, modal, toast, fmtDate } from '../ui.js';
 import * as S from '../scroll.js';
-import { perfil } from '../perfil.js?v=20261121u';
-import { mountRankingCard } from './ranking.js?v=20261121u';
+import { perfil } from '../perfil.js?v=20261121v';
+import { mountRankingCard } from './ranking.js?v=20261121v';
 
 export const section = 'inicio';
 

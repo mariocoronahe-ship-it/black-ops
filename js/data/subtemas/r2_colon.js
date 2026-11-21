@@ -1,6 +1,6 @@
 // Hojas por subtema de los módulos R2 de Colon y Apéndice (7 hojas) y Recto y Ano (8 hojas).
 // Integra y amplía el contenido doctrinal de temario_aprende_base.js, resúmenes R2 y temario PUEM HGR 72. Ver hoja.js.
-import { sheet } from './hoja.js?v=20261121u';
+import { sheet } from './hoja.js?v=20261121v';
 
 export const R2_COLON = {
   colon: [

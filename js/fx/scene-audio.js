@@ -1,8 +1,8 @@
 // Partituras de los portales: efectos ElevenLabs (boom, encendido, alerta, pop y ambientes)
 // como capa principal, con texturas sintetizadas propias de cada escena encima.
 
-import { getEngine, isPortalAudioMuted, setPortalAudioMuted, duck, addDuckTarget, removeDuckTarget } from './portal-audio.js?v=20261121u';
-import { getSfx, warmSfx } from './sfx-bank.js?v=20261121u';
+import { getEngine, isPortalAudioMuted, setPortalAudioMuted, duck, addDuckTarget, removeDuckTarget } from './portal-audio.js?v=20261121v';
+import { getSfx, warmSfx } from './sfx-bank.js?v=20261121v';
 
 let whiteBuf = null;
 

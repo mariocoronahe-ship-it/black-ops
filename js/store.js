@@ -2,7 +2,7 @@
 import {
   PENDIENTES_WHATSAPP, PENDIENTES_RETIRADOS, EVENTOS_RETIRADOS, CALENDARIO_MARIO, ROTACIONES_MARIO, WA_SYNC_ID,
 } from './data/pendientes_whatsapp.js';
-import { perfil, perfilId } from './perfil.js?v=20261121u';
+import { perfil, perfilId } from './perfil.js?v=20261121v';
 
 // Mario conserva su almacén de siempre; cada tester tiene el suyo y no recibe los datos personales de Mario.
 const isOwner = () => perfil().owner;
@@ -14,8 +14,8 @@ let ARGOS_FLASHCARDS = [];
 let PUEM_SERIAL_CASES = [];
 let dataReady = null;
 export const loadStoreData = () => (dataReady ||= Promise.all([
-  import('./data/temario_aprende.js?v=20261121u'),
-  import('./data/repaso_alto_rendimiento.js?v=20261121u'),
+  import('./data/temario_aprende.js?v=20261121v'),
+  import('./data/repaso_alto_rendimiento.js?v=20261121v'),
 ]).then(([t, r]) => {
   TEMARIO_APRENDE = t.TEMARIO_APRENDE;
   ARGOS_FLASHCARDS = r.ARGOS_FLASHCARDS;
