@@ -2026,3 +2026,14 @@ body.is-exam-prelock .fab {
 .bo-mx .bo-mx-foot td.is-good { color: var(--bo-good); }
 .bo-mx .bo-mx-foot td.is-warn { color: var(--bo-warn); }
 .bo-mx .bo-mx-foot td.is-bad { color: var(--bo-bad); }
+
+/* Consola de mando en pantallas angostas (celular o iframe del panel CALOT) */
+.bo-control-card > * { min-width: 0; }
+@media (max-width: 560px) {
+  .bo-control-card { padding: 16px 14px; }
+  .bo-control-card .ads-sec-head { flex-wrap: wrap; align-items: flex-start; }
+  .bo-control-actions .btn { flex: 1 1 140px; justify-content: center; }
+  .bo-config-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .bo-field .input { width: 100%; min-width: 0; }
+  .bo-launch-bar .btn { flex: 1 1 100%; white-space: normal; text-align: center; line-height: 1.3; padding: 14px 14px; font-size: 0.85rem; }
+}

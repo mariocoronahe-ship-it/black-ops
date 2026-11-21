@@ -18,10 +18,31 @@
   <link rel="stylesheet" href="styles/glass.css">
   <link rel="stylesheet" href="styles/sections2.css">
   <link rel="stylesheet" href="styles/premium.css?v=20261122b">
-  <link rel="stylesheet" href="styles/adscrito.css?v=20261122b">
+  <link rel="stylesheet" href="styles/adscrito.css?v=20261122c">
   <link rel="stylesheet" href="styles/resumenes.css?v=20261119e">
   <link rel="stylesheet" href="styles/ranking.css?v=20261122b">
   <link rel="stylesheet" href="styles/eval.css?v=20261122b">
+  <!-- Modo incrustado: dentro del iframe del panel docente de CALOT no se muestran las barras de Black Ops -->
+  <script>
+    (function () {
+      var embed = true;
+      try { embed = window.self !== window.top || /(?:^|[?&])embed=1(?:&|$)/.test(location.search); } catch (e) { embed = true; }
+      if (embed) document.documentElement.classList.add('is-embed');
+    })();
+  </script>
+  <style>
+    html.is-embed { --hud-h: 0px; }
+    html.is-embed .hud,
+    html.is-embed .tabbar,
+    html.is-embed .laser-line,
+    html.is-embed .fab-menu,
+    html.is-embed #fab-menu,
+    html.is-embed #more-sheet,
+    html.is-embed .bo-explore-pill,
+    html.is-embed [data-bo-act="switch-card"] { display: none !important; }
+    html.is-embed main#view { padding-top: 16px !important; padding-bottom: 24px !important; }
+    html.is-embed body.is-landing main#view { padding: 0 !important; }
+  </style>
 </head>
 <body data-section="portada" class="is-landing">
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
