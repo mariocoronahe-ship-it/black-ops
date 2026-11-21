@@ -2037,3 +2037,21 @@ body.is-exam-prelock .fab {
   .bo-field .input { width: 100%; min-width: 0; }
   .bo-launch-bar .btn { flex: 1 1 100%; white-space: normal; text-align: center; line-height: 1.3; padding: 14px 14px; font-size: 0.85rem; }
 }
+
+/* Panel docente: nunca más ancho que su contenedor (iframe de CALOT, celular).
+   El grid usa minmax(0,1fr) para que una tabla o matriz ancha no estire toda la vista. */
+.ads-view { grid-template-columns: minmax(0, 1fr); min-width: 0; max-width: 100%; }
+.ads-view > *, .ads-kpis > *, .bo-dash-card, .ads-table-card { min-width: 0; }
+.ads-table-wrap, .bo-mx-wrap { max-width: 100%; overflow-x: auto; }
+@media (max-width: 420px) {
+  .ads-kpis { grid-template-columns: minmax(0, 1fr); }
+  .ads-hero .wing-badge { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+  .ads-hero .wing-lead, .ads-hero h1 { overflow-wrap: anywhere; }
+}
+html.is-embed, html.is-embed body { overflow-x: hidden; max-width: 100%; }
+html.is-embed main#view { max-width: 100%; min-width: 0; overflow-x: hidden; }
+@media (max-width: 560px) {
+  html.is-embed .ads-kpis { grid-template-columns: minmax(0, 1fr); }
+  html.is-embed .ads-hero .wing-badge { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+  html.is-embed .ads-hero .wing-lead { overflow-wrap: anywhere; }
+}
