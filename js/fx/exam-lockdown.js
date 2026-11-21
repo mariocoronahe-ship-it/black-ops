@@ -5,12 +5,12 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261121r';
-import { perfil, perfilId, isAdscrito, R2_RESIDENTS, BOOT_KEY } from '../perfil.js?v=20261121r';
+import { store, questions, loadStoreData } from '../store.js?v=20261121s';
+import { perfil, perfilId, isAdscrito, R2_RESIDENTS, BOOT_KEY } from '../perfil.js?v=20261121s';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121r';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121r';
-import { playCalotEvaluation, startWaitingTauntLoop } from './eval-cinematic.js?v=20261121r';
+import { playUiSfx } from './audio.js?v=20261121s';
+import { unlockPortalAudio } from './portal-audio.js?v=20261121s';
+import { playCalotEvaluation, startWaitingTauntLoop } from './eval-cinematic.js?v=20261121s';
 
 const ENDPOINT = '/api/examen';
 
@@ -85,7 +85,7 @@ async function buildQuestionPool(topic, count, seedStr) {
   if (!cachedPool) {
     let puemQs = [];
     try {
-      const m = await import('../data/puem_examenes.js?v=20261121r');
+      const m = await import('../data/puem_examenes.js?v=20261121s');
       puemQs = (m.PUEM_QUESTIONS || []).filter((q) => q.year === 'R2' || !q.year);
     } catch {}
     const storeQs = (questions() || []).map((q) => ({
@@ -254,7 +254,7 @@ async function launchLockdownOverlay(exam, initialMe) {
     <div class="bo-takeover-stage" data-bo-takeover>
       <div class="bo-takeover-badge mono">⚠️ PROTOCOLO BLACK OPS · INTERVENCIÓN DOCENTE</div>
       <div class="bo-takeover-eye">
-        <img src="assets/calot-hero.png?v=20261121r" alt="" width="112" height="112" />
+        <img src="assets/calot-hero.png?v=20261121s" alt="" width="112" height="112" />
       </div>
       <h1>BLOQUEO GENERAL <em>ACTIVADO</em></h1>
       <p class="bo-takeover-lead">La <b>Dra. Araceli Hernández Vargas</b> ha suspendido la navegación libre e iniciado el examen de <b>${esc(exam.topicLabel || 'Cirugía General R2')}</b>.</p>

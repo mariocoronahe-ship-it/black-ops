@@ -1,6 +1,6 @@
 // R1 · fundamentos (2/2): infección, choque, nutrición y sangre.
 // Desarrollo de tema completo por subtema (base: material de Drive «CALOT-OS COMPLETO» + Sabiston, Schwartz, GPC IMSS).
-import { sheet } from './hoja.js?v=20261121r';
+import { sheet } from './hoja.js?v=20261121s';
 
 export const R1B = {
   'ap-r1-infeccion': [

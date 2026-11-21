@@ -5,11 +5,11 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261121r';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121r';
+import { icon } from '../icons.js?v=20261121s';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121s';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261121r';
-import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121r';
+import { playUiSfx } from '../fx/audio.js?v=20261121s';
+import { fetchExamBoard, adminExamAction } from '../fx/exam-lockdown.js?v=20261121s';
 
 export const section = 'biblio';
 
@@ -392,7 +392,9 @@ export function mount(root, rerender) {
     playUiSfx('click');
 
     if (act === 'switch-card') {
+      sessionStorage.removeItem('blackops:booted:v3');
       sessionStorage.removeItem('calot:booted');
+      try { localStorage.removeItem('calot:rol'); } catch {}
       setPerfil('r2_mario');
       markBody();
       location.hash = '#/inicio';

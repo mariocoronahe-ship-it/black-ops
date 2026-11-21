@@ -1,8 +1,8 @@
 // Guion visual de «El Ojo de CALOT» sobre los mismos tiempos, voces y textos de la intro de residentes (30 s):
 // «No me busques» · «Ya te vi» · «Sigo aquí. Dentro de tu sistema» · «Este quirófano es mío» · «Te estoy observando».
 
-import { CUE, cueList } from '../androide/android-timeline.js?v=20261121r';
-import { track, bump, clamp, smooth, rng } from './forge-common.js?v=20261121r';
+import { CUE, cueList } from '../androide/android-timeline.js?v=20261121s';
+import { track, bump, clamp, smooth, rng } from './forge-common.js?v=20261121s';
 
 const rad = (d) => (d * Math.PI) / 180;
 

@@ -55,10 +55,15 @@ export function wipeTestersLocalData() {
   } catch {}
 }
 
-export const perfilId = () => (PROFILES[getLS(PERFIL_KEY)] ? getLS(PERFIL_KEY) : 'r2_mario');
+export const perfilId = () => {
+  const cur = getLS(PERFIL_KEY) || getLS('calot:perfil');
+  if (cur && PROFILES[cur]) return cur;
+  if (getLS('calot:rol') === 'adscrito') return 'hernandez';
+  return 'r2_mario';
+};
 export const perfil = () => PROFILES[perfilId()];
 export const isOwner = () => Boolean(perfil().owner);
-export const isAdscrito = () => perfil().role === 'adscrito';
+export const isAdscrito = () => perfil().role === 'adscrito' || getLS('calot:rol') === 'adscrito';
 export const canSee = (grade) => !grade || perfil().grades.includes(grade);
 export const topGrade = () => perfil().grades[perfil().grades.length - 1];
 export const allowedYear = (y) => (canSee(y) ? y : topGrade());

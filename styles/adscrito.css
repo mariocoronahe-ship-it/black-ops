@@ -8,6 +8,17 @@ body:not([data-rol="adscrito"]):not([data-owner="1"]) .is-adscrito-only { displa
 body[data-rol="adscrito"] .hud-brand-txt small .rol-res { display: none; }
 body[data-rol="adscrito"] .hud-brand-txt small .rol-ads { display: inline; }
 
+/* Ajuste compacto del HUD en pantallas de laptop cuando el botón Monitoreo está visible para evitar encimamientos */
+@media (max-width: 1540px) {
+  .hud { gap: 8px !important; padding-inline: 14px !important; }
+  .hud-brand { flex: none; margin-right: 4px; }
+  .hud-brand small { font-size: 8.5px !important; letter-spacing: 0.12em !important; white-space: nowrap; }
+  .hud-nav { gap: 2px !important; }
+  .hud-item { min-width: 54px !important; padding: 8px 6px !important; font-size: 9px !important; letter-spacing: 0.08em !important; }
+  .hud-item.is-guardia { padding-inline: 8px !important; }
+  .hud-right { gap: 6px !important; }
+}
+
 .ads-view { display: grid; gap: 18px; padding-bottom: 40px; }
 .ads-hero h1 em { color: var(--crimson-ink); }
 .ads-private { color: var(--crimson-ink); border-color: rgba(var(--crimson-rgb), 0.4); }
