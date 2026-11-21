@@ -1,8 +1,8 @@
 // Biblioteca R1–R4: resúmenes detallados, breves, perlas y casos clínicos del contenido completo (Drive).
 import { md, esc } from '../ui.js';
-import { YEARS } from '../data/temario_puem.js?v=20261122a';
-import { allowedYear, perfil } from '../perfil.js?v=20261122a';
-import { TIPOS, loadTopics } from '../contenido.js?v=20261122a';
+import { YEARS } from '../data/temario_puem.js?v=20261122b';
+import { allowedYear, perfil } from '../perfil.js?v=20261122b';
+import { TIPOS, loadTopics } from '../contenido.js?v=20261122b';
 
 export const section = 'resumenes';
 

@@ -3,8 +3,8 @@
    ========================================================================== */
 
 import * as S from '../scroll.js';
-import { renderBootPortadaHTML, wireBootPortada, playRoleIntro, docenteFormRequested } from '../fx/boot.js?v=20261122a';
-import { isAdscrito } from '../perfil.js?v=20261122a';
+import { renderBootPortadaHTML, wireBootPortada, playRoleIntro, docenteFormRequested } from '../fx/boot.js?v=20261122b';
+import { isAdscrito } from '../perfil.js?v=20261122b';
 
 export const section = 'portada';
 

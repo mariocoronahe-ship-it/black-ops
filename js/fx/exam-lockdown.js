@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261122a';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122a';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122a';
+import { store, questions, loadStoreData } from '../store.js?v=20261122b';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122b';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122b';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122a';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122a';
-import { playCalotEvaluation } from './eval-cinematic.js?v=20261122a';
-import { detectCurrentBrowser } from './browser-check.js?v=20261122a';
+import { playUiSfx } from './audio.js?v=20261122b';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122b';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122b';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122b';
 
 const ENDPOINT = '/api/examen';
 
@@ -92,9 +92,9 @@ async function buildQuestionPool(topic, count, seedStr) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261122a'),
-        import('../data/juegos_drive_v1.js?v=20261122a'),
-        import('../data/juegos_drive_v2.js?v=20261122a'),
+        import('../data/juegos_argos.js?v=20261122b'),
+        import('../data/juegos_drive_v1.js?v=20261122b'),
+        import('../data/juegos_drive_v2.js?v=20261122b'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -359,7 +359,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122a" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122b" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -718,7 +718,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261122a" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122b" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">

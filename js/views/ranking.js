@@ -1,11 +1,11 @@
 // Liga CALOT · ranking entre Chantal, Areli y Daniela (Mario también lo ve). Datos: js/ranking.js.
-import { icon } from '../icons.js?v=20261122a';
+import { icon } from '../icons.js?v=20261122b';
 import { esc, modal, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122a';
+import { playUiSfx } from '../fx/audio.js?v=20261122b';
 import * as S from '../scroll.js';
 import {
   loadBoard, markCrown, publishSoon, savePremio, accuracy, fmtWeek, BADGES, TITLES,
-} from '../ranking.js?v=20261122a';
+} from '../ranking.js?v=20261122b';
 
 export const section = 'stats';
 

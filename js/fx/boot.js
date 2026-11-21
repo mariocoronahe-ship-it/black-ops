@@ -4,11 +4,11 @@
    y entra directo a navegar por CALOT-OS mientras la Dra. Hernández activa el examen.
    ========================================================================== */
 
-import { store, questions, todayISO, loadStoreData } from '../store.js?v=20261122a';
+import { store, questions, todayISO, loadStoreData } from '../store.js?v=20261122b';
 import { esc } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122a';
-import { unlockPortalAudio } from './portal-audio.js?v=20261122a';
-import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody, doctorTitle } from '../perfil.js?v=20261122a';
+import { playUiSfx } from './audio.js?v=20261122b';
+import { unlockPortalAudio } from './portal-audio.js?v=20261122b';
+import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody, doctorTitle } from '../perfil.js?v=20261122b';
 
 export const BOOT_KEY = 'blackops:booted:v4';
 export const ROLE_KEY = 'calot:rol';
@@ -22,8 +22,8 @@ const dueLabel = (n) => `${n} ${n === 1 ? 'pendiente' : 'pendientes'}`;
 
 export function loadBootData() {
   return Promise.all([
-    import('../data/temario_aprende.js?v=20261122a'),
-    import('../data/catalogo_recursos.js?v=20261122a'),
+    import('../data/temario_aprende.js?v=20261122b'),
+    import('../data/catalogo_recursos.js?v=20261122b'),
     loadStoreData(),
   ]).then(([t, c]) => {
     TEMARIO_APRENDE = t.TEMARIO_APRENDE;
@@ -66,7 +66,7 @@ export function renderPulsingCoreHTML({ isOrbit = false } = {}) {
       <span class="boot-sweep"></span>
       <span class="boot-orbit"><i></i></span>
       <span class="boot-orb">
-        <img src="assets/calot-hero.png?v=20261122a" alt="" width="96" height="96" decoding="async" />
+        <img src="assets/calot-hero.png?v=20261122b" alt="" width="96" height="96" decoding="async" />
         <svg class="boot-ecg" viewBox="0 0 120 32" preserveAspectRatio="none">
           <path class="boot-ecg-base" d="M0 16 H32 L40 16 L46 6 L53 26 L60 4 L67 22 L73 16 H120" />
           <path class="boot-ecg-pulse" d="M0 16 H32 L40 16 L46 6 L53 26 L60 4 L67 22 L73 16 H120" />
@@ -88,7 +88,7 @@ export function renderBootPortadaHTML({ showDocente = false } = {}) {
           <div class="r2-roster-brand">
             <div class="login-eye is-compact" aria-hidden="true">
               <span class="login-ring is-a"></span><span class="login-ring is-b"></span><span class="login-scan"></span>
-              <img src="assets/calot-hero.png?v=20261122a" alt="" width="88" height="88" decoding="async" />
+              <img src="assets/calot-hero.png?v=20261122b" alt="" width="88" height="88" decoding="async" />
             </div>
             <div>
               <p class="login-kicker t-mono"><span class="login-lock" aria-hidden="true"></span>HGR 72 · CIRUGÍA GENERAL · GENERACIÓN R2</p>
@@ -109,18 +109,21 @@ export function renderBootPortadaHTML({ showDocente = false } = {}) {
           <div class="r2-only-pill t-mono" aria-hidden="true"><i></i>ACCESO EXCLUSIVO · RESIDENTES R2</div>`}
         </header>
 
+        <div class="r2-roster-status t-mono" data-r2-status aria-live="polite"><i aria-hidden="true"></i><span>ESCÁNER LISTO · TOCA TU PLACA</span></div>
+
         <div class="r2-cards-grid" role="list" aria-label="Residentes de Segundo Año (R2)">
-          ${R2_RESIDENTS.map((r) => `
-            <button type="button" class="r2-card" role="listitem" data-r2-pick="${esc(r.id)}">
-              <span class="r2-card-avatar t-mono">${esc(r.ini)}</span>
+          ${R2_RESIDENTS.map((r, i) => `
+            <button type="button" class="r2-card" role="listitem" data-r2-pick="${esc(r.id)}" style="--i:${i}" aria-label="${esc(r.name)} · ${esc(r.tema)}">
+              <span class="r2-plate-scan" aria-hidden="true"></span>
+              <span class="r2-plate-head t-mono" aria-hidden="true"><span>EXP · R2-${String(i + 1).padStart(2, '0')}</span><i class="r2-plate-led"></i></span>
+              <span class="r2-card-avatar" aria-hidden="true" data-ini="${esc(r.ini)}">${esc(r.ini)}</span>
               <span class="r2-card-body">
-                <span class="r2-card-top">
-                  <strong>${esc(r.name)}</strong>
-                  <em class="r2-card-badge t-mono">R2 · CG</em>
-                </span>
+                <strong>${esc(r.name)}</strong>
                 <small class="r2-card-sub">${esc(r.tema)}</small>
               </span>
-              <span class="r2-card-arrow" aria-hidden="true">→</span>
+              <span class="r2-plate-foot t-mono" aria-hidden="true"><span>CIRUGÍA GRAL · HGR 72</span><i class="r2-plate-code"></i></span>
+              <span class="r2-plate-stamp t-mono" aria-hidden="true"><b>✓ IDENTIDAD</b><b>CONFIRMADA</b></span>
+              <span class="r2-plate-seal t-mono" aria-hidden="true">EN USO</span>
             </button>
           `).join('')}
         </div>
@@ -160,12 +163,39 @@ export function wireBootPortada(container, onEnter) {
     timerId = window.setTimeout(go, 120);
   };
 
+  const grid = container.querySelector('.r2-cards-grid');
+  const status = container.querySelector('[data-r2-status] span');
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  // Placas «en uso»: residentes con señal reciente en el servidor (otro dispositivo ya entró con ese nombre)
+  let sealTimer = 0;
+  const refreshSeals = async () => {
+    if (!container.isConnected || entered) return;
+    try {
+      const r = await fetch('/api/examen', { cache: 'no-store' });
+      const data = r.ok ? await r.json() : null;
+      const now = Number(data?.serverNow) || Date.now();
+      const res = data?.residents || {};
+      container.querySelectorAll('[data-r2-pick]').forEach((card) => {
+        const seen = Number(res[card.dataset.r2Pick]?.lastSeen) || 0;
+        card.classList.toggle('is-sealed', seen > 0 && now - seen < 25000);
+      });
+    } catch {}
+    sealTimer = window.setTimeout(refreshSeals, 8000);
+  };
+  refreshSeals();
+
   const enterAsResident = (r2Id, cardEl) => {
-    if (entered) return;
+    if (entered || grid?.classList.contains('has-pick')) return;
     unlockPortalAudio();
     const prof = profileByCode(r2Id);
     if (!prof) return;
+    if (cardEl?.classList.contains('is-sealed')
+      && !window.confirm(`${prof.name} ya aparece conectado en otro dispositivo.\n\n¿Eres tú y quieres entrar aquí?`)) return;
+    grid?.classList.add('has-pick');
     cardEl?.classList.add('is-picked');
+    if (status) status.textContent = `VERIFICANDO IDENTIDAD · ${prof.name.toUpperCase()}…`;
+    try { navigator.vibrate?.([14, 50, 22]); } catch {}
     setPerfil(prof.id);
     setLS(ROLE_KEY, 'residente');
     markBody();
@@ -175,7 +205,13 @@ export function wireBootPortada(container, onEnter) {
     } catch {}
     playUiSfx('click');
     nextHash = '#/inicio';
-    triggerEnter();
+    // Bloqueo de identidad: escaneo + glitch y sello de confirmación antes de entrar
+    timerId = window.setTimeout(() => {
+      cardEl?.classList.add('is-confirmed');
+      if (status) status.textContent = `✓ IDENTIDAD CONFIRMADA · BIENVENIDO, ${prof.name.toUpperCase()}`;
+      try { navigator.vibrate?.(30); } catch {}
+      timerId = window.setTimeout(triggerEnter, reduced ? 250 : 750);
+    }, reduced ? 150 : 650);
   };
 
   const form = container.querySelector('[data-boot-login]');
@@ -222,6 +258,7 @@ export function wireBootPortada(container, onEnter) {
 
   return () => {
     window.clearTimeout(timerId);
+    window.clearTimeout(sealTimer);
     form?.removeEventListener('submit', onSubmit);
     container.removeEventListener('click', onClick);
   };
@@ -299,5 +336,5 @@ export function mountInitialBootGate(onEnterApp) {
 /** En Black Ops entran directo a navegar o al panel de control sin intro de 60 s que estorbe. */
 export function playRoleIntro() {
   if (isAdscrito()) return;
-  import('./voice.js?v=20261122a').then((m) => m.voiceWelcome?.(0.35)).catch(() => {});
+  import('./voice.js?v=20261122b').then((m) => m.voiceWelcome?.(0.35)).catch(() => {});
 }
