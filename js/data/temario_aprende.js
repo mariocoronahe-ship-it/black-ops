@@ -3,14 +3,14 @@
 //  · R2: los módulos de ARGOS-MED se conservan íntegros (son más extensos y citados) y al final de cada uno se agregan
 //    las síntesis de Drive (hojas extra, repaso rápido en Ejecutivo y perlas).
 //  · Los bloques transversales originales (HBP y trauma) quedan al final, después de R4.
-import { TEMARIO_APRENDE_BASE } from './temario_aprende_base.js?v=20261122b';
-import { DRIVE_MODULES, DRIVE_R2_ADDITIONS } from './temario_drive.js?v=20261122b';
-import { canSee } from '../perfil.js?v=20261122b';
-import { SUBTEMA_SHEETS } from './subtemas_drive.js?v=20261122b';
-import { BREVES_R1 } from './breves/r1.js?v=20261122b';
-import { BREVES_R2 } from './breves/r2.js?v=20261122b';
-import { BREVES_R3 } from './breves/r3.js?v=20261122b';
-import { BREVES_R4 } from './breves/r4.js?v=20261122b';
+import { TEMARIO_APRENDE_BASE } from './temario_aprende_base.js?v=20261122c';
+import { DRIVE_MODULES, DRIVE_R2_ADDITIONS } from './temario_drive.js?v=20261122c';
+import { canSee } from '../perfil.js?v=20261122c';
+import { SUBTEMA_SHEETS } from './subtemas_drive.js?v=20261122c';
+import { BREVES_R1 } from './breves/r1.js?v=20261122c';
+import { BREVES_R2 } from './breves/r2.js?v=20261122c';
+import { BREVES_R3 } from './breves/r3.js?v=20261122c';
+import { BREVES_R4 } from './breves/r4.js?v=20261122c';
 
 // Resumen breve por módulo (vista «Ejecutivo»); reemplaza al original si existe.
 const BREVES = { ...BREVES_R1, ...BREVES_R2, ...BREVES_R3, ...BREVES_R4 };

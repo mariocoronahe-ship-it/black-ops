@@ -1,8 +1,8 @@
 // Chat de retroalimentación en el HUD.
 // Tester: cajón «Retroalimentación con Mario». Mario: bandeja con una pestaña por tester.
-import { icon } from './icons.js?v=20261122b';
-import { PROFILES } from './perfil.js?v=20261122b';
-import { subscribe, send, unread, unreadTotal, markRead, threadHTML, deliveryMode, myChannels, myRole } from './feedback.js?v=20261122b';
+import { icon } from './icons.js?v=20261122c';
+import { PROFILES } from './perfil.js?v=20261122c';
+import { subscribe, send, unread, unreadTotal, markRead, threadHTML, deliveryMode, myChannels, myRole } from './feedback.js?v=20261122c';
 
 const TAGS = ['Bug', 'Idea', 'Me gustó', 'Confuso'];
 let mounted = false;

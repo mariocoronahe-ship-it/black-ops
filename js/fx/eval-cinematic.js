@@ -3,8 +3,8 @@
 //  · Pantalla negra con código rojo rápido, flashes robóticos, voz «Calculando» + riser oscuro de 30 s.
 //  · Impacto sincronizado al PUM (23.45 s) → calificación gigante en pantalla → ambiente de terror en loop + voz de burla.
 import { esc } from '../ui.js';
-import { isVoiceOn, stopVoice } from './voice.js?v=20261122b';
-import { unlockPortalAudio } from './portal-audio.js?v=20261122b';
+import { isVoiceOn, stopVoice } from './voice.js?v=20261122c';
+import { unlockPortalAudio } from './portal-audio.js?v=20261122c';
 
 const BASE = new URL('../../assets/voz/', import.meta.url);
 
@@ -215,12 +215,16 @@ export function playCalotEvaluation({
   onReplay = null,
   onClose = null,
   sessionEnd = null, // { name } → cierre de examen: sin voces, solo efectos + tarjeta de sesión finalizada
+  buildSec = null, // duración del ascenso hasta el PUM (por defecto el riser completo; el examen usa 8 s)
 } = {}) {
   stopCalotEvaluation();
   stopWaitingTaunt();
   stopVoice();
 
   const scorePct = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+  // Ascenso hasta el PUM: el riser arranca a (PUM − buildSec) para que el impacto siga cayendo justo en el porcentaje
+  const BUILD_SEC = Math.max(3, Math.min(PUM_TIME_SEC, Number(buildSec) || (sessionEnd ? 8 : PUM_TIME_SEC)));
+  const RISER_FROM = PUM_TIME_SEC - BUILD_SEC;
   // En el cierre del examen no hay voces: solo efectos (y suenan aunque la voz esté apagada)
   const soundOn = sessionEnd ? true : isVoiceOn();
   const voiceOn = !sessionEnd && isVoiceOn();
@@ -415,7 +419,7 @@ export function playCalotEvaluation({
         timers.push(window.setTimeout(() => endPower?.play().catch(() => {}), 650));
         try { navigator.vibrate?.([60, 40, 120]); } catch {}
       }, 1500));
-      timers.push(window.setTimeout(showActions, 4200));
+      timers.push(window.setTimeout(showActions, 3200));
       return;
     }
 
@@ -442,10 +446,11 @@ export function playCalotEvaluation({
     if (closed) return;
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const elapsedSec = riser && !riser.paused && riser.currentTime > 0
-      ? riser.currentTime
+    const riserSynced = riser && !riser.paused && riser.currentTime > 0 && riser.currentTime >= RISER_FROM - 0.5;
+    const elapsedSec = riserSynced
+      ? riser.currentTime - RISER_FROM
       : (now - startMs) / 1000;
-    const progress = Math.max(0, Math.min(1, elapsedSec / PUM_TIME_SEC));
+    const progress = Math.max(0, Math.min(1, elapsedSec / BUILD_SEC));
 
     // Fondo negro con estela rápida
     ctx.fillStyle = revealed ? 'rgba(0, 0, 0, 0.24)' : `rgba(0, 0, 0, ${0.22 - progress * 0.08})`;
@@ -509,7 +514,7 @@ export function playCalotEvaluation({
       }
 
       // Disparo exacto al PUM
-      if (elapsedSec >= PUM_TIME_SEC - 0.03) {
+      if (elapsedSec >= BUILD_SEC - 0.03) {
         revealScore();
       }
     } else {
@@ -529,6 +534,13 @@ export function playCalotEvaluation({
 
   // Arrancar audios
   if (riser) {
+    if (RISER_FROM > 0) {
+      // Saltar al tramo final del riser (el PUM queda en el segundo BUILD_SEC)
+      const seek = () => { try { if (riser.currentTime < RISER_FROM - 0.5) riser.currentTime = RISER_FROM; } catch {} };
+      seek();
+      riser.addEventListener('loadedmetadata', seek, { once: true });
+      riser.addEventListener('playing', seek, { once: true });
+    }
     riser.play().catch(() => {});
   }
   if (calcAudio) {

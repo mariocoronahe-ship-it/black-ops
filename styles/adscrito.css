@@ -2055,3 +2055,61 @@ html.is-embed main#view { max-width: 100%; min-width: 0; overflow-x: hidden; }
   html.is-embed .ads-hero .wing-badge { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
   html.is-embed .ads-hero .wing-lead { overflow-wrap: anywhere; }
 }
+
+/* ---------- Monitoreo en vivo · cuadrícula compacta de residentes ---------- */
+.bo-roster-card { padding: 16px 18px; }
+.bo-roster-card .ads-sec-head { flex-wrap: wrap; margin-bottom: 10px; }
+.bo-roster-legend { font-size: 10.5px; letter-spacing: 0.08em; }
+.bo-roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.bo-rc {
+  min-width: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-left: 3px solid var(--bo-rc-c, rgba(255, 255, 255, 0.18));
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.bo-rc.is-exam { --bo-rc-c: #3ccf8e; }
+.bo-rc.is-done { --bo-rc-c: #6aa8ff; }
+.bo-rc.is-nav { --bo-rc-c: rgba(60, 207, 142, 0.45); }
+.bo-rc.is-idle { --bo-rc-c: rgba(255, 255, 255, 0.14); opacity: 0.62; }
+.bo-rc.is-locked { --bo-rc-c: #ff3a55; background: rgba(255, 38, 68, 0.1); }
+.bo-rc.is-out { --bo-rc-c: #ff3a55; animation: bo-rc-out 1.2s ease-in-out infinite; }
+@keyframes bo-rc-out { 50% { background: rgba(255, 38, 68, 0.16); } }
+.bo-rc-main {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.bo-rc-name { font-weight: 700; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-rc-q { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.02em; color: var(--c-ink, #fff); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-rc.is-done .bo-rc-q { color: #8fbcff; }
+.bo-rc.is-idle .bo-rc-q, .bo-rc.is-nav .bo-rc-q { font-size: 0.78rem; font-weight: 500; color: var(--c-muted); }
+.bo-rc-ex { font-size: 10.5px; letter-spacing: 0.06em; color: var(--c-muted); }
+.bo-rc.has-exits .bo-rc-ex { color: #ff5a70; font-weight: 700; }
+.bo-rc.is-open { grid-column: 1 / -1; border-color: rgba(var(--crimson-rgb), 0.45); }
+.bo-rc.is-open .bo-rc-main { grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 12px; }
+.bo-rc-more { display: grid; gap: 8px; padding: 0 10px 10px; min-width: 0; }
+.bo-rc-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.8rem; min-width: 0; overflow-wrap: anywhere; }
+.bo-rc-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.bo-rc-more .bo-results { max-width: 100%; overflow-x: auto; }
+@media (max-width: 560px) {
+  .bo-roster-card { padding: 12px; }
+  .bo-roster { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .bo-rc-main { padding: 7px 8px; }
+  .bo-rc-name { font-size: 0.8rem; }
+  .bo-rc.is-open .bo-rc-main { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+}

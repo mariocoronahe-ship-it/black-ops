@@ -5,13 +5,13 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261122b';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122b';
+import { icon } from '../icons.js?v=20261122c';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122c';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122b';
-import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122b';
-import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122b';
-import { dashboardHTML } from './adscrito-dashboard.js?v=20261122b';
+import { playUiSfx } from '../fx/audio.js?v=20261122c';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122c';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122c';
+import { dashboardHTML } from './adscrito-dashboard.js?v=20261122c';
 
 export const section = 'biblio';
 
@@ -331,6 +331,44 @@ function resultsHTML(rowId) {
   }).join('')}</ol>`;
 }
 
+/** Tarjeta compacta del monitoreo: nombre · pregunta en la que va · salidas. Detalles al tocar. */
+let openCardId = null;
+function rosterCardHTML(r, ex) {
+  const exits = r.events.filter((e) => e.k === 'salida' || e.k === 'recarga').length || r.strikes || 0;
+  const now = Date.now();
+  const inExam = r.state === 'en_examen' || (ex.active && r.hasJoined && r.state !== 'entregado' && r.state !== 'bloqueado_trampa');
+  const outNow = inExam && r.lastSeen && now - r.lastSeen > 12000;
+  let where;
+  let cls = '';
+  if (r.state === 'sin_entrar') { where = 'Sin entrar'; cls = 'is-idle'; }
+  else if (r.state === 'entregado') { where = `Terminó${r.scorePct != null ? ` · ${r.scorePct}%` : ''}`; cls = 'is-done'; }
+  else if (r.state === 'bloqueado_trampa') { where = '🔒 Bloqueado'; cls = 'is-locked'; }
+  else if (inExam) { where = `P ${Math.min(r.qTotal, (r.qIndex || 0) + 1)}/${r.qTotal}`; cls = 'is-exam'; }
+  else { where = 'Explorando'; cls = 'is-nav'; }
+  const open = openCardId === r.id;
+  const badBrowser = r.browser && !r.browser.allowed;
+  return `
+    <article class="bo-rc ${cls} ${exits || outNow ? 'has-exits' : ''} ${outNow ? 'is-out' : ''} ${open ? 'is-open' : ''}" role="listitem">
+      <button type="button" class="bo-rc-main" data-bo-card="${esc(r.id)}" aria-expanded="${open}">
+        <span class="bo-rc-name">${badBrowser ? '⛔ ' : ''}${esc(r.name)}</span>
+        <span class="bo-rc-q mono">${where}</span>
+        <span class="bo-rc-ex mono" title="Salidas de pantalla">${outNow ? 'FUERA · ' : ''}${exits} ${exits === 1 ? 'salida' : 'salidas'}</span>
+      </button>
+      ${open ? `
+      <div class="bo-rc-more">
+        <div class="bo-rc-row">${stateBadgeHTML(r)} ${r.hasJoined ? browserChipHTML(r) : ''}</div>
+        <div class="bo-rc-row mono muted">Última señal: ${esc(r.lastSeenLabel)} · ${esc(r.tema)}</div>
+        <div class="bo-rc-row">${antiCheatHTML(r)}</div>
+        <div class="bo-rc-actions">
+          ${r.locked ? `<button type="button" class="btn btn-sm btn-glow" data-bo-unlock="${esc(r.id)}">🔓 Desbloquear</button>` : ''}
+          ${r.hasJoined && r.state !== 'entregado' && ex.active ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-finish="${esc(r.id)}">⛔ Calificar así</button>` : ''}
+          ${r.hasJoined && ex.source === 'custom' ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-results="${esc(r.id)}">${resultsOpenFor === r.id ? 'Ocultar respuestas' : '📋 Ver respuestas'}</button>` : ''}
+        </div>
+        ${resultsOpenFor === r.id ? `<div class="bo-results">${resultsHTML(r.id)}</div>` : ''}
+      </div>` : ''}
+    </article>`;
+}
+
 export function render() {
   const rows = buildRows();
   const ex = board.exam || {};
@@ -465,59 +503,13 @@ export function render() {
     </div>
   </section>
 
-  <section class="card ads-table-card" data-wing-enter>
+  <section class="card bo-roster-card" data-wing-enter>
     <div class="ads-sec-head">
-      <h2>Monitoreo en Vivo · 14 Residentes R2</h2>
-      <span class="mono muted">Actualización automática cada 3 segundos</span>
+      <h2>Monitoreo en vivo · 14 R2</h2>
+      <span class="mono muted bo-roster-legend">Toca una tarjeta para ver detalles</span>
     </div>
-    <div class="ads-table-wrap">
-      <table class="ads-table">
-        <thead>
-          <tr>
-            <th>Residente R2</th>
-            <th>Estado en tiempo real</th>
-            <th>Avance / Reactivo</th>
-            <th>Calificación</th>
-            <th>Salidas (Anti-Trampa)</th>
-            <th>Última señal</th>
-            <th>Control Docente</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map((r) => {
-            const pct = r.qTotal ? Math.round((r.answered / r.qTotal) * 100) : 0;
-            return `
-            <tr class="${r.locked ? 'is-locked-row' : ''}">
-              <td class="ads-name">
-                <span class="ads-avatar">${esc(r.ini)}</span>
-                <div>
-                  <b>${esc(r.name)}</b>
-                  <small class="mono muted" style="display:block;font-size:10.5px">${esc(r.tema)}</small>
-                  ${r.hasJoined ? browserChipHTML(r) : ''}
-                </div>
-              </td>
-              <td data-label="Estado">${stateBadgeHTML(r)}</td>
-              <td data-label="Avance">
-                <div class="ads-meter"><i style="width:${pct}%"></i></div>
-                <b>${r.answered}/${r.qTotal}</b>
-              </td>
-              <td data-label="Calificación">
-                ${r.scorePct != null ? `<b class="bo-score-pill">${r.scorePct}%</b> <small class="muted">(${r.correct}/${r.total})</small>` : '<span class="muted">—</span>'}
-              </td>
-              <td data-label="Anti-Trampa">${antiCheatHTML(r)}</td>
-              <td data-label="Última señal" class="mono muted">${esc(r.lastSeenLabel)}</td>
-              <td data-label="Acciones">
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                  ${r.locked ? `<button type="button" class="btn btn-sm btn-glow" data-bo-unlock="${esc(r.id)}">🔓 Desbloquear</button>` : ''}
-                  ${r.hasJoined && r.state !== 'entregado' && ex.active ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-finish="${esc(r.id)}">⛔ Calificar así</button>` : ''}
-                  ${r.hasJoined && ex.source === 'custom' ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-results="${esc(r.id)}">${resultsOpenFor === r.id ? 'Ocultar respuestas' : '📋 Ver respuestas'}</button>` : ''}
-                </div>
-                ${resultsOpenFor === r.id ? `<div class="bo-results">${resultsHTML(r.id)}</div>` : ''}
-              </td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+    <div class="bo-roster" role="list">
+      ${rows.map((r) => rosterCardHTML(r, ex)).join('')}
     </div>
   </section>
 </div>`;
@@ -641,6 +633,14 @@ export function mount(root, rerender) {
     const delBtn = e.target.closest('[data-bo-imp-del]');
     if (delBtn && importDraft) {
       importDraft.questions.splice(Number(delBtn.dataset.boImpDel), 1);
+      rerenderNow();
+      return;
+    }
+    const cardBtn = e.target.closest('[data-bo-card]');
+    if (cardBtn) {
+      const id = cardBtn.dataset.boCard;
+      openCardId = openCardId === id ? null : id;
+      if (openCardId !== resultsOpenFor) resultsOpenFor = null;
       rerenderNow();
       return;
     }

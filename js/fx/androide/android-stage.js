@@ -1,10 +1,10 @@
-import { sampleTimeline, rng } from './android-timeline.js?v=20261122b';
-import { getVoiceLevel } from '../voice.js?v=20261122b';
-import { buildPorcelainMap, buildNoiseMap, buildDotMap } from './android-textures.js?v=20261122b';
+import { sampleTimeline, rng } from './android-timeline.js?v=20261122c';
+import { getVoiceLevel } from '../voice.js?v=20261122c';
+import { buildPorcelainMap, buildNoiseMap, buildDotMap } from './android-textures.js?v=20261122c';
 import {
   PORCELAIN_UNIFORMS, patchPorcelain, patchFollowHead, MIST_VERT, MIST_FRAG, DUST_VERT, DUST_FRAG, HALO_VERT, HALO_FRAG,
   QUAD_VERT, BRIGHT_FRAG, BLUR_FRAG, COMPOSITE_FRAG,
-} from './android-shaders.js?v=20261122b';
+} from './android-shaders.js?v=20261122c';
 
 export const QUALITY = [
   { level: 0, dpr: 0.75, shadow: 0, msaa: 0, bloom: 0, haze: 2, dust: 120, model: 'lo', tex: 512, aber: false },

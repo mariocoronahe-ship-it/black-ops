@@ -1,10 +1,10 @@
-import { icon } from '../icons.js?v=20261122b';
-import { store, todayISO, daysUntil } from '../store.js?v=20261122b';
+import { icon } from '../icons.js?v=20261122c';
+import { store, todayISO, daysUntil } from '../store.js?v=20261122c';
 import { esc, modal, toast, placeSeg, fmtDate } from '../ui.js';
 import * as S from '../scroll.js';
-import * as bitacora from './bitacora.js?v=20261122b';
+import * as bitacora from './bitacora.js?v=20261122c';
 import { PERFIL_MARIO as PERFIL_DUENO, ROTACIONES_MARIO as ROT_DUENO } from '../data/pendientes_whatsapp.js';
-import { isOwner, topGrade } from '../perfil.js?v=20261122b';
+import { isOwner, topGrade } from '../perfil.js?v=20261122c';
 // Las testers ven una sede neutra: nada del grupo de guardia ni de las rotaciones de Mario.
 const PERFIL_MARIO = isOwner() ? PERFIL_DUENO : { grupoGuardia: '—', sede: 'HGR No. 72 IMSS', grado: `${topGrade()} Cirugía General` };
 const ROTACIONES_MARIO = isOwner() ? ROT_DUENO : [];

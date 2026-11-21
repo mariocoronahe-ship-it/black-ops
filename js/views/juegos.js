@@ -1,6 +1,6 @@
-import { icon } from '../icons.js?v=20261122b';
-import { store, questions, inferTopicId } from '../store.js?v=20261122b';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122b';
+import { icon } from '../icons.js?v=20261122c';
+import { store, questions, inferTopicId } from '../store.js?v=20261122c';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122c';
 import { shuffleBlitzItem } from '../casos.js';
 import {
   DETECTIVE_CASES,
@@ -8,17 +8,17 @@ import {
   EXTRA_BLITZ_QUESTIONS,
   EXTRA_PASE_BEDS,
   EXTRA_LAPBLANCA_CASES,
-} from '../data/juegos_argos.js?v=20261122b';
-import { DRIVE_V1 } from '../data/juegos_drive_v1.js?v=20261122b';
-import { DRIVE_V2 } from '../data/juegos_drive_v2.js?v=20261122b';
-import { JUEGOS_NUEVOS } from '../data/juegos_nuevos.js?v=20261122b';
-import { canSee } from '../perfil.js?v=20261122b';
-import { publishSoon } from '../ranking.js?v=20261122b';
+} from '../data/juegos_argos.js?v=20261122c';
+import { DRIVE_V1 } from '../data/juegos_drive_v1.js?v=20261122c';
+import { DRIVE_V2 } from '../data/juegos_drive_v2.js?v=20261122c';
+import { JUEGOS_NUEVOS } from '../data/juegos_nuevos.js?v=20261122c';
+import { canSee } from '../perfil.js?v=20261122c';
+import { publishSoon } from '../ranking.js?v=20261122c';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122b';
-import { playSubPortal } from '../fx/portal.js?v=20261122b';
-import { voiceTime } from '../fx/voice.js?v=20261122b';
-import { startWaitingTaunts, playCalotEvaluation } from '../fx/eval-cinematic.js?v=20261122b';
+import { playUiSfx } from '../fx/audio.js?v=20261122c';
+import { playSubPortal } from '../fx/portal.js?v=20261122c';
+import { voiceTime } from '../fx/voice.js?v=20261122c';
+import { startWaitingTaunts, playCalotEvaluation } from '../fx/eval-cinematic.js?v=20261122c';
 import * as S from '../scroll.js';
 
 export const section = 'juegos';
