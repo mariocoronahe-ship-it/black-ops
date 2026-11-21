@@ -5,12 +5,13 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261121z';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261121z';
+import { icon } from '../icons.js?v=20261122a';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122a';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261121z';
-import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261121z';
-import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261121z';
+import { playUiSfx } from '../fx/audio.js?v=20261122a';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122a';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122a';
+import { dashboardHTML } from './adscrito-dashboard.js?v=20261122a';
 
 export const section = 'biblio';
 
@@ -51,6 +52,10 @@ let importBusy = false;
 let pasteOpen = false;
 let resultsData = null; // respuesta de la acción 'results'
 let resultsOpenFor = null;
+let liveResults = null; // respuestas de todos en vivo (examen cargado) para el tablero
+let liveSig = '';
+let clockTimer = null;
+let pullCount = 0;
 
 let formDraft = {
   topic: 'colon',
@@ -389,6 +394,8 @@ export function render() {
     </article>
   </div>
 
+  ${dashboardHTML(rows, ex, liveResults)}
+
   ${customExamCardHTML(ex)}
 
   <section class="card bo-control-card" data-wing-enter>
@@ -533,7 +540,23 @@ export function mount(root, rerender) {
         const changed = nextSig !== lastSig;
         board = data;
         lastSig = nextSig;
-        if (changed || forceRender) keep();
+        let resChanged = false;
+        const ex = data.exam;
+        // Tablero en vivo: con examen cargado se traen las respuestas de todos cada ~6 s
+        const wantResults = ex.source === 'custom' && ex.startedAt && (ex.active ? (pullCount++ % 2 === 0 || changed) : (!liveResults || changed));
+        if (wantResults) {
+          try {
+            const r = await adminExamAction('results');
+            const sig = JSON.stringify(r?.picks || {});
+            if (sig !== liveSig) { liveSig = sig; resChanged = true; }
+            liveResults = r;
+          } catch {}
+        } else if (ex.source !== 'custom' && liveResults) {
+          liveResults = null;
+          liveSig = '';
+          resChanged = true;
+        }
+        if (changed || forceRender || resChanged) keep();
       }
     } catch {}
   };
@@ -549,6 +572,18 @@ export function mount(root, rerender) {
   }, 3000);
 
   const rerenderNow = () => rerender({ keepScroll: true });
+
+  // Reloj del tablero (sin redibujar todo el panel)
+  clearInterval(clockTimer);
+  clockTimer = setInterval(() => {
+    if (!root.isConnected) { clearInterval(clockTimer); clockTimer = null; return; }
+    root.querySelectorAll('[data-bo-clock]').forEach((el) => {
+      const end = Number(el.dataset.boClock) || 0;
+      if (!end || !board.exam?.active) return;
+      const t = Math.max(0, Math.round((end - Date.now()) / 1000));
+      el.textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+    });
+  }, 1000);
 
   const loadDraft = (parsed, title) => {
     importDraft = {

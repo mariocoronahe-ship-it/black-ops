@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261121z';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121z';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121z';
+import { store, questions, loadStoreData } from '../store.js?v=20261122a';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122a';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122a';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121z';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261121z';
-import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121z';
-import { detectCurrentBrowser } from './browser-check.js?v=20261121z';
+import { playUiSfx } from './audio.js?v=20261122a';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122a';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122a';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122a';
 
 const ENDPOINT = '/api/examen';
 
@@ -54,6 +54,11 @@ function seededShuffle(arr, seed) {
   return out;
 }
 
+/** Orden de preguntas que vio un residente (posición mostrada → pregunta original) en un examen cargado. */
+export function examOrderFor(sessionId, residentId, n) {
+  return seededShuffle(Array.from({ length: n }, (_, i) => i), `${sessionId}:${residentId}:questions`);
+}
+
 function currentSectionLabel() {
   const h = (location.hash || '#/inicio').replace(/^#\/?/, '').split('?')[0].toLowerCase() || 'inicio';
   return SECTION_LABELS[h] || h;
@@ -87,9 +92,9 @@ async function buildQuestionPool(topic, count, seedStr) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261121z'),
-        import('../data/juegos_drive_v1.js?v=20261121z'),
-        import('../data/juegos_drive_v2.js?v=20261121z'),
+        import('../data/juegos_argos.js?v=20261122a'),
+        import('../data/juegos_drive_v1.js?v=20261122a'),
+        import('../data/juegos_drive_v2.js?v=20261122a'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -354,7 +359,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261121z" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122a" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -490,6 +495,168 @@ function playSynthTakeoverAudio() {
     });
   } catch {}
 }
+/* ------------------------------------------------------------------
+   Fase 1 · La app se va bloqueando pieza por pieza (≈9 s)
+   Fase 3 · «Evaluación en curso · no intentes hacer trampa» (≈6 s)
+   ------------------------------------------------------------------ */
+const PRELOCK_MS = 9000;
+const EVALPHASE_MS = 6500;
+const PRELOCK_MSGS = [
+  'LA DRA. HERNÁNDEZ INICIÓ EL EXAMEN · TOMANDO EL CONTROL…',
+  'DESCONECTANDO RESÚMENES, PUEM Y BANCO DE PREGUNTAS…',
+  'BLOQUEANDO NAVEGACIÓN, ASISTENTE IA Y COPIADO…',
+  'SELLANDO PANTALLA · NO TOQUES NADA…',
+];
+
+function synthBlip(freq = 520, dur = 0.07, vol = 0.12, type = 'square') {
+  try {
+    const eng = getEngine();
+    if (!eng || eng.ctx.state !== 'running') return;
+    const { ctx, dry } = eng;
+    const t0 = ctx.currentTime + 0.005;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    o.frequency.exponentialRampToValueAtTime(Math.max(40, freq * 0.55), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(dry || ctx.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  } catch {}
+}
+
+function collectLockPieces(max = 44) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const sel = '.hud a, .hud button, .tabbar a, .fab, #view .card, #view h1, #view h2, #view h3, #view .btn, #view a, #view img, #view canvas, #view li, #view input, #view select';
+  const seen = new Set();
+  const out = [];
+  document.querySelectorAll(sel).forEach((el) => {
+    if (el.closest('#bo-lockdown-root, #boot-gate')) return;
+    const r = el.getBoundingClientRect();
+    if (r.width < 26 || r.height < 14) return;
+    if (r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw) return;
+    if (r.width * r.height > vw * vh * 0.55) return;
+    const key = `${Math.round(r.left / 6)}:${Math.round(r.top / 6)}:${Math.round(r.width / 6)}:${Math.round(r.height / 6)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ top: Math.max(0, r.top), left: Math.max(0, r.left), width: Math.min(vw, r.right) - Math.max(0, r.left), height: Math.min(vh, r.bottom) - Math.max(0, r.top) });
+  });
+  out.sort((a, b) => (a.top + a.left * 0.25) - (b.top + b.left * 0.25));
+  if (out.length <= max) return out;
+  const step = out.length / max;
+  return Array.from({ length: max }, (_, i) => out[Math.floor(i * step)]);
+}
+
+/** Recorre la pantalla del residente y sella cada pieza de la app con un candado rojo. */
+function runPrelock(root, timers) {
+  return new Promise((resolve) => {
+    const layer = root.querySelector('[data-bo-pieces]');
+    const msgEl = root.querySelector('[data-bo-prelock-msg]');
+    const pctEl = root.querySelector('[data-bo-prelock-count]');
+    const barEl = root.querySelector('[data-bo-prelock-bar]');
+    const pieces = collectLockPieces();
+    const tecleo = makeSfxAudio('tecleo.mp3', 0.42);
+    const alertA = makeSfxAudio('alert.mp3', 0.6);
+    alertA?.play().catch(() => {});
+    timers.push(setTimeout(() => tecleo?.play().catch(() => {}), 700));
+    root._prelockAudios = [tecleo, alertA];
+    try { navigator.vibrate?.([120, 60, 120]); } catch {}
+
+    const t0 = performance.now();
+    const lockEnd = PRELOCK_MS - 1500; // el último segundo y medio se cierran las persianas
+    const n = Math.max(1, pieces.length);
+    pieces.forEach((r, i) => {
+      // arranca lento y se acelera, como si el sistema fuera ganando terreno
+      const at = 450 + Math.pow(i / n, 0.72) * (lockEnd - 600);
+      timers.push(setTimeout(() => {
+        if (!root.isConnected || !layer) return;
+        const d = document.createElement('div');
+        d.className = `bo-lockpiece${r.width * r.height > 2600 ? ' has-lock' : ''}`;
+        d.style.cssText = `top:${r.top}px;left:${r.left}px;width:${r.width}px;height:${r.height}px`;
+        d.innerHTML = '<i></i>';
+        layer.appendChild(d);
+        synthBlip(300 + (i / n) * 900, 0.06, 0.07 + (i / n) * 0.06);
+        if (i % 9 === 8) { try { navigator.vibrate?.(35); } catch {} }
+      }, at));
+    });
+    PRELOCK_MSGS.forEach((m, i) => {
+      timers.push(setTimeout(() => { if (msgEl) msgEl.textContent = m; }, (i * lockEnd) / PRELOCK_MSGS.length));
+    });
+
+    const tick = () => {
+      if (!root.isConnected) return;
+      const k = Math.min(1, (performance.now() - t0) / lockEnd);
+      document.documentElement.style.setProperty('--bo-prelock-k', k.toFixed(3));
+      if (pctEl) pctEl.textContent = `${Math.round(k * 100)}%`;
+      if (barEl) barEl.style.width = `${k * 100}%`;
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+
+    timers.push(setTimeout(() => {
+      if (!root.isConnected) return;
+      if (msgEl) msgEl.textContent = 'APLICACIÓN BLOQUEADA';
+      root.classList.add('is-shutting');
+      const sw = makeSfxAudio('swoosh.mp3', 0.8);
+      sw?.play().catch(() => {});
+      try { tecleo?.pause(); } catch {}
+      try { navigator.vibrate?.(180); } catch {}
+    }, lockEnd));
+    timers.push(setTimeout(() => {
+      document.body.classList.remove('is-exam-prelock');
+      document.documentElement.style.removeProperty('--bo-prelock-k');
+      root.classList.remove('is-prelock', 'is-shutting');
+      root.querySelector('[data-bo-prelock]')?.remove();
+      resolve();
+    }, PRELOCK_MS));
+  });
+}
+
+function strikeRuleText(exam) {
+  if (exam.strictMode === '1strike') return 'La 1.ª salida de pantalla bloquea tu examen';
+  if (exam.strictMode === 'warn') return 'Cada salida de pantalla queda registrada con su tiempo';
+  return 'A la 2.ª salida de pantalla tu examen se bloquea';
+}
+
+/** Pantalla intermedia: evaluación en curso y advertencia anti-trampa. */
+function runEvalPhase(root, exam, timers) {
+  return new Promise((resolve) => {
+    const el = root.querySelector('[data-bo-evalphase]');
+    if (!el) { resolve(); return; }
+    el.hidden = false;
+    root.classList.add('is-evalphase');
+    const latido = makeSfxAudio('latido.mp3', 0.7);
+    latido?.play().catch(() => {});
+    root._evalAudios = [latido];
+    const rules = [...el.querySelectorAll('[data-bo-rule]')];
+    rules.forEach((li, i) => timers.push(setTimeout(() => {
+      li.classList.add('is-on');
+      synthBlip(180 + i * 60, 0.12, 0.14, 'triangle');
+    }, 700 + i * 650)));
+    const cnt = el.querySelector('[data-bo-eval-count]');
+    const bar = el.querySelector('[data-bo-eval-bar]');
+    const t0 = performance.now();
+    const tick = () => {
+      if (!root.isConnected) return;
+      const k = Math.min(1, (performance.now() - t0) / EVALPHASE_MS);
+      if (bar) bar.style.width = `${k * 100}%`;
+      const left = Math.ceil((EVALPHASE_MS - (performance.now() - t0)) / 1000);
+      if (cnt) cnt.textContent = left > 0 ? `PRIMERA PREGUNTA EN ${left}…` : 'ADELANTE';
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    timers.push(setTimeout(() => {
+      try { latido?.pause(); } catch {}
+      el.hidden = true;
+      root.classList.remove('is-evalphase');
+      resolve();
+    }, EVALPHASE_MS));
+  });
+}
+
 async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   closeLockdownOverlay();
   closeBlockedScreen();
@@ -510,7 +677,8 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
 
   const root = document.createElement('div');
   root.id = 'bo-lockdown-root';
-  root.className = `bo-lockdown${resuming ? '' : ' is-takeover is-glitch-hit'}`;
+  root.className = `bo-lockdown${resuming ? '' : ' is-takeover is-prelock'}`;
+  if (!resuming) document.body.classList.add('is-exam-prelock');
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
   root.setAttribute('aria-label', 'Examen Departamental R2 · Bloqueo Activo');
@@ -521,17 +689,14 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   let takeoverAudios = [];
   let riserAudio = null;
   let impactAudio = null;
+  let alertAudio = null;
+  let glitchAudio = null;
   if (!resuming) {
-    try { navigator.vibrate?.([220, 70, 260, 70, 340, 90, 480]); } catch {}
-    playUiSfx('bad');
-    playSynthTakeoverAudio();
-    const alertAudio = makeSfxAudio('alert.mp3', 0.88);
-    const glitchAudio = makeSfxAudio('glitch.mp3', 0.72);
+    alertAudio = makeSfxAudio('alert.mp3', 0.88);
+    glitchAudio = makeSfxAudio('glitch.mp3', 0.72);
     riserAudio = makeSfxAudio('riser.mp3', 0.82);
     impactAudio = makeSfxAudio('impacto.mp3', 0.92);
     takeoverAudios = [alertAudio, glitchAudio, riserAudio, impactAudio].filter(Boolean);
-    alertAudio?.play().catch(() => {});
-    glitchAudio?.play().catch(() => {});
   }
   const lockSteps = [
     'Módulos de consulta y resúmenes desconectados',
@@ -553,7 +718,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261121z" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122a" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
@@ -575,6 +740,33 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <div class="bo-takeover-count" data-bo-countdown>INICIANDO EN ${TAKEOVER_SEC}…</div>
       </div>
     </div>
+    ${resuming ? '' : `
+    <div class="bo-prelock" data-bo-prelock aria-live="polite">
+      <div class="bo-prelock-layer" data-bo-pieces></div>
+      <div class="bo-prelock-banner mono"><i class="bo-live-led"></i><span data-bo-prelock-msg>${esc(PRELOCK_MSGS[0])}</span><b data-bo-prelock-count>0%</b></div>
+      <div class="bo-prelock-bar"><i data-bo-prelock-bar></i></div>
+      <div class="bo-shutter is-top" aria-hidden="true"><span class="mono">BLACK OPS</span></div>
+      <div class="bo-shutter is-bottom" aria-hidden="true"><span class="mono">🔒 EXAMEN R2</span></div>
+    </div>
+    <div class="bo-evalphase" data-bo-evalphase hidden>
+      <div class="bo-evalphase-icon" aria-hidden="true">
+        <span class="bo-ret-ring is-a"></span><span class="bo-ret-ring is-b"></span>
+        <svg viewBox="0 0 64 64"><path d="M32 4 8 13v17c0 15 10.4 26.3 24 30 13.6-3.7 24-15 24-30V13L32 4z" fill="rgba(255,45,70,.16)" stroke="#ff2d46" stroke-width="2.5"/><circle cx="32" cy="30" r="8" fill="none" stroke="#ffd2d9" stroke-width="2.5"/><circle cx="32" cy="30" r="3" fill="#ff2d46"/><path d="M14 30c5-8 11-12 18-12s13 4 18 12c-5 8-11 12-18 12s-13-4-18-12z" fill="none" stroke="#ff8b9b" stroke-width="2"/></svg>
+      </div>
+      <p class="bo-evalphase-kicker mono"><i class="bo-live-led"></i>VIGILANCIA EN VIVO · HGR 72</p>
+      <h1 class="bo-evalphase-title">EVALUACIÓN <em>EN CURSO</em></h1>
+      <p class="bo-evalphase-sub">${esc(p.name)}, <b>no intentes hacer trampa.</b></p>
+      <ul class="bo-evalphase-rules">
+        <li data-bo-rule><i>👁</i><span>La Dra. Hernández ve en vivo tu avance y cada movimiento</span></li>
+        <li data-bo-rule><i>🚪</i><span>${esc(strikeRuleText(exam))}</span></li>
+        <li data-bo-rule><i>🤖</i><span>Siri, Gemini, capturas y otras apps quedan registradas</span></li>
+        <li data-bo-rule><i>🔀</i><span>Tu orden de preguntas e incisos es único: copiar no sirve</span></li>
+      </ul>
+      <div class="bo-takeover-count-box mono">
+        <div class="bo-takeover-bar"><i data-bo-eval-bar></i></div>
+        <div class="bo-takeover-count" data-bo-eval-count>PRIMERA PREGUNTA EN 6…</div>
+      </div>
+    </div>`}
     <div class="bo-exam-stage" data-bo-exam hidden></div>
     <div class="bo-cheat-modal" data-bo-cheat hidden></div>
   `;
@@ -605,10 +797,9 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     void flashEl.offsetWidth;
     flashEl.classList.add(strong ? 'is-bang' : 'is-pulse');
   };
-  if (!resuming) triggerTakeoverFlash(false);
 
   const tokens = ['LOCK::R2', 'HGR_72', 'CALOT//OS', 'NO_EXIT', 'PROCTOR_ON', '0x72F1', 'AUDIT_QX', 'AI_OFF', 'SEAL_8S'];
-  const takeoverStartMs = performance.now();
+  let takeoverStartMs = performance.now();
   const drawMatrix = () => {
     if (!root.isConnected) return;
     const elapsed = Math.min(TAKEOVER_SEC, (performance.now() - takeoverStartMs) / 1000);
@@ -631,7 +822,9 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     if (barEl) barEl.style.width = `${Math.round(k * 100)}%`;
     if (root.classList.contains('is-takeover')) rafId = requestAnimationFrame(drawMatrix);
   };
-  if (!resuming) rafId = requestAnimationFrame(drawMatrix);
+  // Fase 1 arranca ya (mientras se descargan las preguntas); la fase 2 espera a que termine
+  const phaseTimers = [];
+  const prelockDone = resuming ? Promise.resolve() : runPrelock(root, phaseTimers);
 
   const seedStr = `${exam.sessionId}:${p.id}`;
   const isCustom = exam.source === 'custom';
@@ -1099,6 +1292,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       modeLabel: `${exam.topicLabel || 'Examen R2'} · ${p.name}`,
       detail: `${correct} de ${total} aciertos · ${strikesCount()} salidas de pantalla${forced ? ' · Cierre docente' : ''}${isCustom ? ' · La revisión de respuestas la verás con la Dra. Hernández' : ''}`,
       reviewItems,
+      sessionEnd: { name: p.name },
       onClose: () => {
         location.hash = '#/inicio';
       },
@@ -1165,7 +1359,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       st.pending = null;
       addEvent({ k: 'recarga', q, d, s: sec, why: 'Recargó o cerró la página del examen' });
     }
-    tauntLoop = startWaitingTaunts();
+    tauntLoop = null; // sin voces durante el examen: solo efectos
     renderQuestion();
     if (isLockedByCheat() || lastCountedEvent()?.ts > Date.now() - 5000) renderCheatWarning();
     syncNow();
@@ -1190,9 +1384,17 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     if (ic) ic.textContent = '🔒';
     playUiSfx('click');
   };
-  if (resuming) {
-    startExam();
-  } else {
+  const startTakeover = () => {
+    if (!root.isConnected) return;
+    root.classList.add('is-glitch-hit');
+    takeoverStartMs = performance.now();
+    rafId = requestAnimationFrame(drawMatrix);
+    triggerTakeoverFlash(false);
+    try { navigator.vibrate?.([220, 70, 260, 70, 340, 90, 480]); } catch {}
+    playUiSfx('bad');
+    playSynthTakeoverAudio();
+    alertAudio?.play().catch(() => {});
+    glitchAudio?.play().catch(() => {});
     takeoverTimers.push(setTimeout(() => {
       if (phaseEl) phaseEl.textContent = 'BLOQUEANDO MÓDULOS DE ESTUDIO E IA…';
       riserAudio?.play().catch(() => {});
@@ -1237,10 +1439,17 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         takeoverTimers.push(setTimeout(() => {
           if (!root.isConnected) return;
           root.classList.remove('is-glitch-hit', 'is-critical');
-          startExam();
-        }, 280));
+          cancelAnimationFrame(rafId);
+          takeoverStage.hidden = true;
+          runEvalPhase(root, exam, phaseTimers).then(() => { if (root.isConnected) startExam(); });
+        }, 650));
       }
     }, 1000);
+  };
+  if (resuming) {
+    startExam();
+  } else {
+    prelockDone.then(startTakeover);
   }
 
   root._cleanup = () => {
@@ -1250,8 +1459,11 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     clearInterval(clockInterval);
     clearTimeout(repaintT);
     takeoverTimers.forEach(clearTimeout);
+    phaseTimers.forEach(clearTimeout);
     tauntLoop?.stop?.();
-    takeoverAudios.forEach((a) => { try { a.pause(); a.currentTime = 0; } catch {} });
+    [...takeoverAudios, ...(root._prelockAudios || []), ...(root._evalAudios || [])].forEach((a) => { try { a?.pause(); a.currentTime = 0; } catch {} });
+    document.body.classList.remove('is-exam-prelock');
+    document.documentElement.style.removeProperty('--bo-prelock-k');
     document.removeEventListener('keydown', blockShortcuts, true);
     document.removeEventListener('contextmenu', blockEvent, true);
     document.removeEventListener('copy', blockEvent, true);

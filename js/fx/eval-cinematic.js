@@ -3,8 +3,8 @@
 //  · Pantalla negra con código rojo rápido, flashes robóticos, voz «Calculando» + riser oscuro de 30 s.
 //  · Impacto sincronizado al PUM (23.45 s) → calificación gigante en pantalla → ambiente de terror en loop + voz de burla.
 import { esc } from '../ui.js';
-import { isVoiceOn, stopVoice } from './voice.js?v=20261121z';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121z';
+import { isVoiceOn, stopVoice } from './voice.js?v=20261122a';
+import { unlockPortalAudio } from './portal-audio.js?v=20261122a';
 
 const BASE = new URL('../../assets/voz/', import.meta.url);
 
@@ -47,6 +47,16 @@ function pickRandom(group, list) {
   const chosen = pool[Math.floor(Math.random() * pool.length)];
   recentByGroup.set(group, chosen);
   return chosen;
+}
+
+function makeSfx(file, { loop = false, volume = 1 } = {}) {
+  const a = new Audio(new URL(`../../assets/sfx/${file}`, import.meta.url).href);
+  a.preload = 'auto';
+  a.setAttribute('playsinline', '');
+  a.playsInline = true;
+  a.loop = loop;
+  a.volume = Math.max(0, Math.min(1, volume));
+  return a;
 }
 
 function makeAudio(name, { loop = false, volume = 1 } = {}) {
@@ -204,19 +214,23 @@ export function playCalotEvaluation({
   reviewItems = [],
   onReplay = null,
   onClose = null,
+  sessionEnd = null, // { name } → cierre de examen: sin voces, solo efectos + tarjeta de sesión finalizada
 } = {}) {
   stopCalotEvaluation();
   stopWaitingTaunt();
   stopVoice();
 
   const scorePct = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
-  const soundOn = isVoiceOn();
+  // En el cierre del examen no hay voces: solo efectos (y suenan aunque la voz esté apagada)
+  const soundOn = sessionEnd ? true : isVoiceOn();
+  const voiceOn = !sessionEnd && isVoiceOn();
+  const endName = sessionEnd ? String(sessionEnd.name || 'Residente R2') : '';
   const prevOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
 
   const overlay = document.createElement('div');
   overlay.id = 'calot-eval-overlay';
-  overlay.className = 'eval-overlay is-scanning';
+  overlay.className = `eval-overlay is-scanning${sessionEnd ? ' is-session-end' : ''}`;
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', 'Evaluación de CALOT-OS');
@@ -255,8 +269,21 @@ export function playCalotEvaluation({
         </div>
         ${total > 0 ? `<p class="eval-score-sub mono">${correct} / ${total}${detail ? ` · ${esc(detail)}` : ''}</p>` : (detail ? `<p class="eval-score-sub mono">${esc(detail)}</p>` : '')}
 
+        ${sessionEnd ? `
+        <div class="eval-end" data-eval-end>
+          <div class="eval-end-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="rgba(255,45,70,.12)" stroke="#ff2d46" stroke-width="2.5"/><path d="M32 14v17" stroke="#ffd2d9" stroke-width="4" stroke-linecap="round"/><path d="M21.5 21.5a15 15 0 1 0 21 0" fill="none" stroke="#ffd2d9" stroke-width="4" stroke-linecap="round"/></svg>
+          </div>
+          <p class="eval-end-kicker mono">SESIÓN DE EXAMEN FINALIZADA · POR EL MOMENTO</p>
+          <div class="eval-name3d-scene" aria-label="${esc(endName)}">
+            <div class="eval-name3d" aria-hidden="true">${esc(endName.toUpperCase())}</div>
+            <div class="eval-name3d-floor" aria-hidden="true"></div>
+          </div>
+          <p class="eval-end-msg">Tus respuestas quedaron <b>selladas y enviadas</b> a la Dra. Hernández.<br />La sesión terminó por ahora: puedes dejar el celular.</p>
+        </div>` : ''}
+
         <div class="eval-result-actions" data-eval-actions hidden>
-          <button type="button" class="btn eval-cta-btn" data-eval-menu>← Regresar al menú</button>
+          <button type="button" class="btn eval-cta-btn" data-eval-menu>${sessionEnd ? 'Cerrar sesión' : '← Regresar al menú'}</button>
           ${onReplay ? `<button type="button" class="btn btn-metal" data-eval-replay>Volver a jugar</button>` : ''}
           ${reviewItems.length ? `<button type="button" class="btn btn-ghost" data-eval-review-toggle>Revisar respuestas (${reviewItems.length})</button>` : ''}
         </div>
@@ -303,11 +330,15 @@ export function playCalotEvaluation({
   unlockPortalAudio();
   const riser = soundOn ? makeAudio(RISER_CLIP, { volume: 0.72 }) : null;
   const calcName = pickRandom('calc', CALC_CLIPS);
-  const calcAudio = soundOn && calcName ? makeAudio(calcName, { volume: 1.0 }) : null;
+  const calcAudio = voiceOn && calcName ? makeAudio(calcName, { volume: 1.0 }) : null;
   const roastPool = scorePct >= 95 ? ['eval-roast-seguro', ...ROAST_CLIPS] : ROAST_CLIPS;
   const roastName = scorePct >= 95 ? 'eval-roast-seguro' : pickRandom('roast', roastPool);
-  const roastAudio = soundOn && roastName ? makeAudio(roastName, { volume: 1.0 }) : null;
-  const terrorAudio = soundOn ? makeAudio(TERROR_CLIP, { loop: true, volume: 0.0 }) : null;
+  const roastAudio = voiceOn && roastName ? makeAudio(roastName, { volume: 1.0 }) : null;
+  const terrorAudio = !soundOn ? null : sessionEnd ? makeSfx('darkbed.mp3', { loop: true, volume: 0 }) : makeAudio(TERROR_CLIP, { loop: true, volume: 0.0 });
+  const endSwoosh = sessionEnd ? makeSfx('whsh.mp3', { volume: 0.85 }) : null;
+  const endPower = sessionEnd ? makeSfx('power-on.mp3', { volume: 0.55 }) : null;
+  primeAudioForMobile(endSwoosh);
+  primeAudioForMobile(endPower);
   primeAudioForMobile(calcAudio);
   primeAudioForMobile(roastAudio);
   primeAudioForMobile(terrorAudio);
@@ -369,6 +400,25 @@ export function playCalotEvaluation({
 
     // Justo después del PUM (~0.85 s): entra el ambiente de terror constante + la voz de burla;
     // cuando termina la voz de burla aparece el botón para regresar al menú.
+    if (sessionEnd) {
+      timers.push(window.setTimeout(() => {
+        if (closed) return;
+        if (terrorAudio) {
+          terrorAudio.volume = 0;
+          terrorAudio.play().then(() => fadeAudio(terrorAudio, 0.3, 1800)).catch(() => {});
+        }
+      }, 850));
+      timers.push(window.setTimeout(() => {
+        if (closed) return;
+        overlay.querySelector('[data-eval-end]')?.classList.add('is-in');
+        endSwoosh?.play().catch(() => {});
+        timers.push(window.setTimeout(() => endPower?.play().catch(() => {}), 650));
+        try { navigator.vibrate?.([60, 40, 120]); } catch {}
+      }, 1500));
+      timers.push(window.setTimeout(showActions, 4200));
+      return;
+    }
+
     timers.push(window.setTimeout(() => {
       if (closed) return;
       if (terrorAudio) {
@@ -504,6 +554,7 @@ export function playCalotEvaluation({
     window.removeEventListener('hashchange', onHash);
     try { calcAudio?.pause(); } catch {}
     try { roastAudio?.pause(); } catch {}
+    try { endSwoosh?.pause(); endPower?.pause(); } catch {}
     if (riser) {
       if (fadeOut) fadeAudio(riser, 0, 280, true);
       else { try { riser.pause(); } catch {} }

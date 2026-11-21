@@ -3,16 +3,16 @@
 // con el guion y las voces propios del panel docente.
 // Conserva la entrada 2D original (`playAdscritoIntro2D`) como respaldo si no hay WebGL2 o falla la carga.
 
-import { getEngine, isPortalAudioMuted, setPortalAudioMuted, addDuckTarget, removeDuckTarget } from './portal-audio.js?v=20261121z';
-import { speak, stopVoice, prefetchVoice } from './voice.js?v=20261121z';
-import { unread, refresh as refreshMsgs } from '../mensajes.js?v=20261121z';
-import { canRunAndroidIntro, createAndroidIntro } from './androide/intro-androide.js?v=20261121z';
-import { cueListAlly, TOTAL, REDUCED_TOTAL, CUE_ALLY } from './androide/android-timeline-aliado.js?v=20261121z';
+import { getEngine, isPortalAudioMuted, setPortalAudioMuted, addDuckTarget, removeDuckTarget } from './portal-audio.js?v=20261122a';
+import { speak, stopVoice, prefetchVoice } from './voice.js?v=20261122a';
+import { unread, refresh as refreshMsgs } from '../mensajes.js?v=20261122a';
+import { canRunAndroidIntro, createAndroidIntro } from './androide/intro-androide.js?v=20261122a';
+import { cueListAlly, TOTAL, REDUCED_TOTAL, CUE_ALLY } from './androide/android-timeline-aliado.js?v=20261122a';
 
-const LOGO = new URL('../../assets/calot-hero.png?v=20261121z', import.meta.url).href;
+const LOGO = new URL('../../assets/calot-hero.png?v=20261122a', import.meta.url).href;
 const ANDROID_ASSETS = new URL('../../assets/intro/', import.meta.url);
 const VENDOR_THREE = new URL('../../vendor/three/', import.meta.url);
-const loadNucleo = () => Promise.all([import('./forge/nucleo-stage.js?v=20261121z'), import('./forge/nucleo-timeline.js?v=20261121z')]);
+const loadNucleo = () => Promise.all([import('./forge/nucleo-stage.js?v=20261122a'), import('./forge/nucleo-timeline.js?v=20261122a')]);
 const STYLE_2D_ID = 'ci-ads-style';
 const STYLE_OV_ID = 'ci-ally-ov-style';
 
@@ -84,8 +84,8 @@ async function summary() {
   } catch {}
   try {
     const [{ loadStoreData }, mod] = await Promise.all([
-      import('../store.js?v=20261121z'),
-      import('../views/adscrito.js?v=20261121z'),
+      import('../store.js?v=20261122a'),
+      import('../views/adscrito.js?v=20261122a'),
     ]);
     await loadStoreData();
     const all = mod.cohort();

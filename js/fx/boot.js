@@ -4,11 +4,11 @@
    y entra directo a navegar por CALOT-OS mientras la Dra. Hernández activa el examen.
    ========================================================================== */
 
-import { store, questions, todayISO, loadStoreData } from '../store.js?v=20261121z';
+import { store, questions, todayISO, loadStoreData } from '../store.js?v=20261122a';
 import { esc } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121z';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121z';
-import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody, doctorTitle } from '../perfil.js?v=20261121z';
+import { playUiSfx } from './audio.js?v=20261122a';
+import { unlockPortalAudio } from './portal-audio.js?v=20261122a';
+import { R2_RESIDENTS, profileByCode, setPerfil, isAdscrito, markBody, doctorTitle } from '../perfil.js?v=20261122a';
 
 export const BOOT_KEY = 'blackops:booted:v4';
 export const ROLE_KEY = 'calot:rol';
@@ -22,8 +22,8 @@ const dueLabel = (n) => `${n} ${n === 1 ? 'pendiente' : 'pendientes'}`;
 
 export function loadBootData() {
   return Promise.all([
-    import('../data/temario_aprende.js?v=20261121z'),
-    import('../data/catalogo_recursos.js?v=20261121z'),
+    import('../data/temario_aprende.js?v=20261122a'),
+    import('../data/catalogo_recursos.js?v=20261122a'),
     loadStoreData(),
   ]).then(([t, c]) => {
     TEMARIO_APRENDE = t.TEMARIO_APRENDE;
@@ -66,7 +66,7 @@ export function renderPulsingCoreHTML({ isOrbit = false } = {}) {
       <span class="boot-sweep"></span>
       <span class="boot-orbit"><i></i></span>
       <span class="boot-orb">
-        <img src="assets/calot-hero.png?v=20261121z" alt="" width="96" height="96" decoding="async" />
+        <img src="assets/calot-hero.png?v=20261122a" alt="" width="96" height="96" decoding="async" />
         <svg class="boot-ecg" viewBox="0 0 120 32" preserveAspectRatio="none">
           <path class="boot-ecg-base" d="M0 16 H32 L40 16 L46 6 L53 26 L60 4 L67 22 L73 16 H120" />
           <path class="boot-ecg-pulse" d="M0 16 H32 L40 16 L46 6 L53 26 L60 4 L67 22 L73 16 H120" />
@@ -76,7 +76,7 @@ export function renderPulsingCoreHTML({ isOrbit = false } = {}) {
   `;
 }
 
-export function renderBootPortadaHTML() {
+export function renderBootPortadaHTML({ showDocente = false } = {}) {
   const { modulesCount, modelsCount } = getBootMetrics();
   return `
     <section class="boot-screen is-login is-r2-roster" aria-labelledby="boot-title">
@@ -88,7 +88,7 @@ export function renderBootPortadaHTML() {
           <div class="r2-roster-brand">
             <div class="login-eye is-compact" aria-hidden="true">
               <span class="login-ring is-a"></span><span class="login-ring is-b"></span><span class="login-scan"></span>
-              <img src="assets/calot-hero.png?v=20261121z" alt="" width="88" height="88" decoding="async" />
+              <img src="assets/calot-hero.png?v=20261122a" alt="" width="88" height="88" decoding="async" />
             </div>
             <div>
               <p class="login-kicker t-mono"><span class="login-lock" aria-hidden="true"></span>HGR 72 · CIRUGÍA GENERAL · GENERACIÓN R2</p>
@@ -97,14 +97,16 @@ export function renderBootPortadaHTML() {
             </div>
           </div>
 
+          ${showDocente ? `
           <div class="r2-docente-box">
-            <span class="t-mono" style="font-size:10.5px;letter-spacing:0.12em;color:#ff6b81">COORDINACIÓN · DRA. HERNÁNDEZ</span>
+            <span class="t-mono" style="font-size:10.5px;letter-spacing:0.12em;color:#ff6b81">ACCESO DOCENTE</span>
             <form class="r2-docente-form" data-boot-login autocomplete="off" novalidate>
-              <input name="c" type="password" class="input is-sm t-mono" placeholder="Clave docente (HE)" aria-label="Clave docente" autocomplete="off" autocapitalize="off" />
+              <input name="c" type="password" class="input is-sm t-mono" placeholder="Código CALOT" aria-label="Código docente" autocomplete="off" autocapitalize="off" />
               <button type="submit" class="btn btn-sm btn-glow">Panel Control →</button>
             </form>
             <p class="boot-login-msg t-mono" data-boot-msg aria-live="polite"></p>
-          </div>
+          </div>` : `
+          <div class="r2-only-pill t-mono" aria-hidden="true"><i></i>ACCESO EXCLUSIVO · RESIDENTES R2</div>`}
         </header>
 
         <div class="r2-cards-grid" role="list" aria-label="Residentes de Segundo Año (R2)">
@@ -185,10 +187,10 @@ export function wireBootPortada(container, onEnter) {
     unlockPortalAudio();
     if (entered || !form) return;
     const code = form.elements.c.value.trim();
-    if (!code) { say('> ingresa clave docente (HE)', 'is-error'); return; }
+    if (!code) { say('> ingresa tu código de CALOT', 'is-error'); return; }
     const prof = profileByCode(code);
     if (!prof || prof.role !== 'adscrito') {
-      say('> clave inválida (usa HE)', 'is-error');
+      say('> código inválido', 'is-error');
       return;
     }
     setPerfil(prof.id);
@@ -225,8 +227,38 @@ export function wireBootPortada(container, onEnter) {
   };
 }
 
+/**
+ * Acceso docente desde la app CALOT original (ARGUS): el botón de su panel abre
+ * black-ops/?docente=<código>. El menú de Black Ops solo muestra a los R2.
+ * Devuelve 'entered' si entró directo, 'form' si hay que pedir el código, o null.
+ */
+function consumeDocenteLink() {
+  let params;
+  try { params = new URLSearchParams(location.search); } catch { return null; }
+  const hashDocente = /^#\/docente\b/.test(location.hash);
+  if (!params.has('docente') && !hashDocente) return null;
+  const code = String(params.get('docente') || '').trim();
+  params.delete('docente');
+  const qs = params.toString();
+  const prof = code ? profileByCode(code) : null;
+  try { history.replaceState(null, '', `${location.pathname}${qs ? `?${qs}` : ''}${prof?.role === 'adscrito' ? '#/adscrito' : hashDocente ? '#/' : location.hash}`); } catch {}
+  if (!prof || prof.role !== 'adscrito') return 'form';
+  setPerfil(prof.id);
+  setLS(ROLE_KEY, 'adscrito');
+  markBody();
+  try { store.reloadProfile?.(); } catch {}
+  sessionStorage.setItem(BOOT_KEY, '1');
+  return 'entered';
+}
+
+// Se resuelve al cargar el módulo, antes del primer ruteo de main.js
+const DOCENTE_LINK = consumeDocenteLink();
+export const docenteFormRequested = () => DOCENTE_LINK === 'form';
+
 export function mountInitialBootGate(onEnterApp) {
-  if (sessionStorage.getItem(BOOT_KEY) === '1') return;
+  const docente = DOCENTE_LINK;
+  if (docente === 'entered') return;
+  if (docente !== 'form' && sessionStorage.getItem(BOOT_KEY) === '1') return;
   if (document.getElementById('boot-gate')) return;
 
   const gate = document.createElement('div');
@@ -235,7 +267,7 @@ export function mountInitialBootGate(onEnterApp) {
   gate.setAttribute('role', 'dialog');
   gate.setAttribute('aria-modal', 'true');
   gate.setAttribute('aria-label', 'Selección de perfil R2 · CALOT-OS');
-  gate.innerHTML = renderBootPortadaHTML();
+  gate.innerHTML = renderBootPortadaHTML({ showDocente: docente === 'form' });
 
   document.body.appendChild(gate);
   const prevOverflow = document.body.style.overflow;
@@ -267,5 +299,5 @@ export function mountInitialBootGate(onEnterApp) {
 /** En Black Ops entran directo a navegar o al panel de control sin intro de 60 s que estorbe. */
 export function playRoleIntro() {
   if (isAdscrito()) return;
-  import('./voice.js?v=20261121z').then((m) => m.voiceWelcome?.(0.35)).catch(() => {});
+  import('./voice.js?v=20261122a').then((m) => m.voiceWelcome?.(0.35)).catch(() => {});
 }

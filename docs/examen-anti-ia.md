@@ -37,3 +37,15 @@ configuración docente, que los residentes nunca escriben.
 - Al iniciar con «PREGUNTAS: examen cargado», cada residente recibe solo enunciado + incisos (sin la respuesta),
   en orden propio de preguntas y de incisos. El celular manda qué inciso original eligió y **el servidor califica**.
 - «📋 Ver respuestas» muestra por residente la pregunta y letra **del Word original** (no la barajada).
+
+## Acceso, secuencia de bloqueo y tablero (22 nov 2026)
+- **Menú de Black Ops = solo los 14 R2.** La Dra. Hernández entra desde ARGUS (CALOT original) con su código:
+  su panel trae el botón «Abrir Centro de Control del examen» → `black-ops/?docente=<código>` (el código se borra
+  de la URL al entrar). Respaldo: `black-ops/?docente` muestra el campo de código.
+- **Bloqueo en 3 fases (~25 s):** 1) la app del residente se sella pieza por pieza con candados (9 s),
+  2) «Dispositivo bloqueado» (8 s), 3) «Evaluación en curso · no intentes hacer trampa» con las reglas (6.5 s).
+- **Cierre sin voces:** solo efectos; tarjeta «Sesión finalizada por el momento» con el nombre del R2 en 3D.
+  Durante el examen tampoco suenan voces.
+- **Tablero docente:** promedio global y avance (anillos), entregados, reloj, matriz residente × pregunta en vivo
+  (✓/✗, dónde va cada quien, salidas), respuestas por pregunta (distractor más elegido), ranking con podio,
+  línea de tiempo de salidas/interrupciones y salidas por pregunta.

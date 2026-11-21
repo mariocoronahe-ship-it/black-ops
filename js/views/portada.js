@@ -3,13 +3,13 @@
    ========================================================================== */
 
 import * as S from '../scroll.js';
-import { renderBootPortadaHTML, wireBootPortada, playRoleIntro } from '../fx/boot.js?v=20261121z';
-import { isAdscrito } from '../perfil.js?v=20261121z';
+import { renderBootPortadaHTML, wireBootPortada, playRoleIntro, docenteFormRequested } from '../fx/boot.js?v=20261122a';
+import { isAdscrito } from '../perfil.js?v=20261122a';
 
 export const section = 'portada';
 
 export function render() {
-  return renderBootPortadaHTML();
+  return renderBootPortadaHTML({ showDocente: docenteFormRequested() });
 }
 
 export function mount(root) {
