@@ -3,13 +3,13 @@
 // color, entrada de cámara y tono musical (PERSONAS). Completa (~80 s) la primera vez; después, un regreso corto en 3D.
 // Esc / Espacio / Enter / clic saltan. Respaldo 2D sin WebGL o con movimiento reducido.
 
-import { icon } from '../icons.js?v=20261121x';
-import { getEngine, isPortalAudioMuted, setPortalAudioMuted, unlockPortalAudio } from './portal-audio.js?v=20261121x';
-import { speak, stopVoice, prefetchVoice, getVoiceLevel } from './voice.js?v=20261121x';
-import { canRunAndroidIntro, createAndroidIntro, prefetchAndroidIntro } from './androide/intro-androide.js?v=20261121x';
+import { icon } from '../icons.js?v=20261121y';
+import { getEngine, isPortalAudioMuted, setPortalAudioMuted, unlockPortalAudio } from './portal-audio.js?v=20261121y';
+import { speak, stopVoice, prefetchVoice, getVoiceLevel } from './voice.js?v=20261121y';
+import { canRunAndroidIntro, createAndroidIntro, prefetchAndroidIntro } from './androide/intro-androide.js?v=20261121y';
 
-const GUIA = new URL('../../assets/guia.png?v=20261121x', import.meta.url).href;
-const LOGO = new URL('../../assets/calot-hero.png?v=20261121x', import.meta.url).href;
+const GUIA = new URL('../../assets/guia.png?v=20261121y', import.meta.url).href;
+const LOGO = new URL('../../assets/calot-hero.png?v=20261121y', import.meta.url).href;
 const STYLE_ID = 'ci-tg-style';
 const seenKey = (id) => `calot:intro-vista:v2:${id}`;
 

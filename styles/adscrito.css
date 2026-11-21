@@ -823,6 +823,9 @@ body.is-exam-locked .hud,
 body.is-exam-locked .tabbar,
 body.is-exam-locked .fab,
 body.is-exam-locked #fab-menu,
+body.is-exam-locked #calot-ai-drawer,
+body.is-exam-locked .ai-drawer,
+body.is-exam-locked #modal,
 body.is-exam-locked .bo-explore-pill {
   display: none !important;
 }
@@ -830,10 +833,27 @@ body.is-exam-locked .bo-explore-pill {
   position: fixed;
   inset: 0;
   z-index: 980;
-  background: #040305;
+  background: #030103;
   color: #f5eff1;
   overflow-y: auto;
   display: grid;
+}
+.bo-lockdown.is-glitch-hit .bo-takeover-stage {
+  animation: boLockShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) 2;
+}
+.bo-lockdown.is-critical .bo-takeover-vignette {
+  animation: boVigAlarm 0.55s ease-in-out infinite alternate;
+}
+@keyframes boLockShake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  15% { transform: translate3d(-7px, 3px, 0) skewX(-1.5deg); }
+  35% { transform: translate3d(7px, -4px, 0) skewX(1.5deg); }
+  55% { transform: translate3d(-5px, -2px, 0); }
+  75% { transform: translate3d(5px, 3px, 0); }
+}
+@keyframes boVigAlarm {
+  from { box-shadow: inset 0 0 80px rgba(255, 22, 54, 0.35); }
+  to { box-shadow: inset 0 0 150px rgba(255, 22, 54, 0.8); }
 }
 .bo-takeover-canvas {
   position: fixed;
@@ -841,18 +861,73 @@ body.is-exam-locked .bo-explore-pill {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  opacity: 0.48;
+  opacity: 0.62;
+}
+.bo-takeover-scanbeam {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 4px;
+  top: -10px;
+  pointer-events: none;
+  z-index: 3;
+  background: linear-gradient(90deg, transparent, #ff2446 25%, #ffd2d9 50%, #ff2446 75%, transparent);
+  box-shadow: 0 0 28px 6px rgba(255, 36, 68, 0.85);
+  animation: boScanBeam 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.bo-lockdown:not(.is-takeover) .bo-takeover-scanbeam,
+.bo-lockdown:not(.is-takeover) .bo-takeover-vignette,
+.bo-lockdown:not(.is-takeover) .bo-takeover-flash {
+  display: none !important;
+}
+@keyframes boScanBeam {
+  0% { top: -8px; opacity: 0.9; }
+  50% { opacity: 1; }
+  100% { top: 102vh; opacity: 0.2; }
+}
+.bo-takeover-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(circle at 50% 42%, transparent 28%, rgba(35, 0, 8, 0.78) 78%, rgba(0, 0, 0, 0.96) 100%);
+  box-shadow: inset 0 0 110px rgba(255, 24, 58, 0.45);
+}
+.bo-takeover-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0;
+}
+.bo-takeover-flash.is-pulse {
+  animation: boFlashPulse 0.42s ease-out forwards;
+}
+.bo-takeover-flash.is-bang {
+  animation: boFlashBang 0.65s ease-out forwards;
+}
+@keyframes boFlashPulse {
+  0% { opacity: 0.55; background: rgba(255, 36, 68, 0.45); }
+  100% { opacity: 0; background: transparent; }
+}
+@keyframes boFlashBang {
+  0% { opacity: 0.95; background: rgba(255, 235, 240, 0.92); }
+  35% { opacity: 0.7; background: rgba(255, 32, 66, 0.75); }
+  100% { opacity: 0; background: transparent; }
 }
 .bo-takeover-stage {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   margin: auto;
-  max-width: 680px;
-  padding: 32px 24px;
+  width: 100%;
+  max-width: 660px;
+  min-height: 100dvh;
+  padding: clamp(16px, 4vw, 32px) clamp(14px, 4vw, 24px);
   text-align: center;
   display: grid;
+  align-content: center;
   justify-items: center;
-  gap: 16px;
+  gap: clamp(10px, 2.2vh, 16px);
 }
 .bo-takeover-stage[hidden],
 .bo-exam-stage[hidden],
@@ -860,61 +935,209 @@ body.is-exam-locked .bo-explore-pill {
   display: none !important;
 }
 .bo-takeover-badge {
-  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
   border-radius: 99px;
-  background: rgba(255, 38, 68, 0.2);
-  border: 1px solid rgba(255, 58, 82, 0.7);
-  color: #ff6880;
-  font-size: 11.5px;
-  letter-spacing: 0.16em;
+  background: rgba(255, 28, 58, 0.24);
+  border: 1px solid rgba(255, 74, 98, 0.85);
+  color: #ff8ea0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  box-shadow: 0 0 24px -4px rgba(255, 36, 68, 0.7);
+}
+.bo-live-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff2e4c;
+  box-shadow: 0 0 12px #ff2e4c;
+  animation: boLedBlink 0.6s ease-in-out infinite alternate;
+}
+@keyframes boLedBlink {
+  from { opacity: 0.35; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1.25); }
+}
+.bo-takeover-reticle {
+  position: relative;
+  width: clamp(104px, 24vw, 138px);
+  height: clamp(104px, 24vw, 138px);
+  display: grid;
+  place-items: center;
+  margin: 4px 0;
+}
+.bo-ret-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 58, 82, 0.45);
+}
+.bo-ret-ring.is-a {
+  inset: -12%;
+  border-style: dashed;
+  border-color: rgba(255, 62, 88, 0.8);
+  animation: boSpinSlow 9s linear infinite;
+}
+.bo-ret-ring.is-b {
+  inset: -24%;
+  border-color: transparent;
+  border-top-color: #ff2e4d;
+  border-bottom-color: #ff2e4d;
+  animation: boSpinSlow 4.5s linear infinite reverse;
+}
+.bo-ret-ring.is-c {
+  inset: -34%;
+  border-color: rgba(255, 42, 72, 0.3);
+  animation: boShockwave 1.6s ease-out infinite;
+}
+@keyframes boSpinSlow {
+  to { transform: rotate(360deg); }
+}
+@keyframes boShockwave {
+  0% { transform: scale(0.86); opacity: 0.85; }
+  100% { transform: scale(1.28); opacity: 0; }
+}
+.bo-takeover-eye {
+  width: 100%;
+  height: 100%;
 }
 .bo-takeover-eye img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   border-radius: 50%;
-  box-shadow: 0 0 60px rgba(255, 30, 60, 0.85);
+  box-shadow: 0 0 65px rgba(255, 28, 58, 0.9);
+  border: 2px solid rgba(255, 76, 100, 0.7);
+}
+.bo-takeover-title-wrap {
+  display: grid;
+  gap: 4px;
+}
+.bo-takeover-sub {
+  margin: 0;
+  font-size: clamp(10px, 2.6vw, 12px);
+  letter-spacing: 0.16em;
+  color: #ff7e92;
 }
 .bo-takeover-stage h1 {
   margin: 0;
-  font-size: clamp(28px, 4.5vw, 48px);
+  font-size: clamp(27px, 6.2vw, 48px);
+  line-height: 1.05;
   letter-spacing: 0.04em;
+  text-shadow: 0 0 28px rgba(255, 32, 64, 0.65);
 }
 .bo-takeover-stage h1 em {
-  color: #ff3a52;
+  color: #ff324e;
   font-style: normal;
 }
 .bo-takeover-lead {
   margin: 0;
-  font-size: 1.04rem;
-  line-height: 1.55;
-  color: rgba(245, 239, 241, 0.84);
+  font-size: clamp(0.9rem, 2.8vw, 1.05rem);
+  line-height: 1.48;
+  color: rgba(245, 239, 241, 0.86);
+  max-width: 540px;
+}
+.bo-takeover-checks {
+  list-style: none;
+  margin: 0;
+  padding: 10px 14px;
+  width: 100%;
+  border-radius: 14px;
+  background: rgba(18, 6, 10, 0.88);
+  border: 1px solid rgba(255, 52, 78, 0.35);
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  font-size: clamp(10.5px, 2.7vw, 12px);
+}
+.bo-takeover-checks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.48;
+  transition: opacity 0.25s ease, color 0.25s ease, transform 0.25s ease;
+}
+.bo-takeover-checks li i {
+  font-style: normal;
+  flex: none;
+}
+.bo-takeover-checks li.is-done {
+  opacity: 1;
+  color: #ffdce2;
+  transform: translateX(3px);
 }
 .bo-takeover-rules {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
-  padding: 14px;
-  border-radius: 16px;
-  background: rgba(20, 10, 15, 0.82);
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(22, 10, 15, 0.86);
   border: 1px solid rgba(255, 58, 82, 0.35);
   text-align: left;
 }
+@media (max-width: 560px) {
+  .bo-takeover-rules {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 .bo-takeover-rules > div {
   display: grid;
-  gap: 3px;
+  gap: 2px;
 }
 .bo-takeover-rules span {
-  font-size: 10px;
-  color: rgba(255, 130, 148, 0.8);
+  font-size: 9.5px;
+  color: rgba(255, 130, 148, 0.82);
 }
 .bo-takeover-rules b {
-  font-size: 12.5px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bo-takeover-count-box {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+}
+.bo-takeover-bar {
+  width: 100%;
+  height: 7px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  border: 1px solid rgba(255, 58, 82, 0.35);
+}
+.bo-takeover-bar i {
+  display: block;
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #ff1e42, #ff7d91);
+  box-shadow: 0 0 18px #ff2e4d;
+  transition: width 0.08s linear;
 }
 .bo-takeover-count {
-  margin-top: 6px;
-  font-size: 1.35rem;
+  font-size: clamp(1.1rem, 4.4vw, 1.55rem);
   font-weight: 800;
-  letter-spacing: 0.2em;
-  color: #ff3a52;
+  letter-spacing: 0.18em;
+  color: #ff445e;
+  text-shadow: 0 0 22px rgba(255, 40, 72, 0.75);
+}
+.bo-takeover-count.is-final {
+  font-size: clamp(1.5rem, 6.2vw, 2.2rem);
+  color: #fff;
+  text-shadow: 0 0 32px #ff2446;
+  animation: boFinalBeat 0.45s ease infinite alternate;
+}
+@keyframes boFinalBeat {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+@media print {
+  body.is-exam-locked { display: none !important; }
 }
 
 /* Sala de Examen Blindada */

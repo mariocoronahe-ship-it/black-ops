@@ -1,9 +1,9 @@
 // «El Ojo de CALOT» (intro de residentes): un diafragma mecánico de metal negro que se arma lámina por lámina
 // y se abre para mostrar un iris rojo con el ECG del logo en la pupila. Detrás, pistas de circuito que laten.
 
-import { getVoiceLevel } from '../voice.js?v=20261121x';
-import { createForge, stageApi, rng, clamp } from './forge-common.js?v=20261121x';
-import { createNameMesh } from './nombre.js?v=20261121x';
+import { getVoiceLevel } from '../voice.js?v=20261121y';
+import { createForge, stageApi, rng, clamp } from './forge-common.js?v=20261121y';
+import { createNameMesh } from './nombre.js?v=20261121y';
 
 const BLADES = 12;
 const R_IN = 0.9; // radio interior del bisel: las láminas se recortan aquí

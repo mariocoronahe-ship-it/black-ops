@@ -5,13 +5,13 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261121x';
-import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121x';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121x';
+import { store, questions, loadStoreData } from '../store.js?v=20261121y';
+import { perfil, perfilId, isAdscrito, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261121y';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261121y';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261121x';
-import { unlockPortalAudio } from './portal-audio.js?v=20261121x';
-import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121x';
+import { playUiSfx } from './audio.js?v=20261121y';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261121y';
+import { playCalotEvaluation, startWaitingTaunts } from './eval-cinematic.js?v=20261121y';
 
 const ENDPOINT = '/api/examen';
 
@@ -86,9 +86,9 @@ async function buildQuestionPool(topic, count, seedStr) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261121x'),
-        import('../data/juegos_drive_v1.js?v=20261121x'),
-        import('../data/juegos_drive_v2.js?v=20261121x'),
+        import('../data/juegos_argos.js?v=20261121y'),
+        import('../data/juegos_drive_v1.js?v=20261121y'),
+        import('../data/juegos_drive_v2.js?v=20261121y'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -273,57 +273,147 @@ function closeLockdownOverlay() {
   document.body.classList.remove('is-exam-locked');
 }
 
+const TAKEOVER_SEC = 8;
+
+function makeSfxAudio(file, vol = 0.85) {
+  try {
+    const a = new Audio(`assets/sfx/${file}`);
+    a.preload = 'auto';
+    a.setAttribute('playsinline', '');
+    a.playsInline = true;
+    a.volume = Math.max(0, Math.min(1, vol));
+    return a;
+  } catch {
+    return null;
+  }
+}
+
+function playSynthTakeoverAudio() {
+  try {
+    const eng = getEngine();
+    if (!eng || eng.ctx.state !== 'running') return;
+    const { ctx, dry } = eng;
+    const t0 = ctx.currentTime + 0.02;
+    // Pulso sub-grave de bloqueo + sirena descendente breve
+    const sub = ctx.createOscillator();
+    const sg = ctx.createGain();
+    sub.type = 'sawtooth';
+    sub.frequency.setValueAtTime(110, t0);
+    sub.frequency.exponentialRampToValueAtTime(34, t0 + 1.4);
+    sg.gain.setValueAtTime(0.001, t0);
+    sg.gain.exponentialRampToValueAtTime(0.32, t0 + 0.04);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.5);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 340;
+    sub.connect(lp); lp.connect(sg); sg.connect(dry || ctx.destination);
+    sub.start(t0); sub.stop(t0 + 1.6);
+
+    // Latidos acelerados hasta los 8 s
+    [1.6, 2.8, 3.9, 4.9, 5.7, 6.4, 7.0, 7.5].forEach((at, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = i >= 5 ? 'triangle' : 'sine';
+      o.frequency.setValueAtTime(i >= 5 ? 880 : 190 + i * 35, t0 + at);
+      o.frequency.exponentialRampToValueAtTime(i >= 5 ? 620 : 62, t0 + at + 0.16);
+      g.gain.setValueAtTime(0.0001, t0 + at);
+      g.gain.exponentialRampToValueAtTime(i >= 5 ? 0.18 : 0.24, t0 + at + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.22);
+      o.connect(g); g.connect(dry || ctx.destination);
+      o.start(t0 + at); o.stop(t0 + at + 0.24);
+    });
+  } catch {}
+}
+
 async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   closeLockdownOverlay();
   unlockPortalAudio();
   document.body.classList.add('is-exam-locked');
+  try {
+    const aiDrawer = document.getElementById('calot-ai-drawer');
+    if (aiDrawer) aiDrawer.hidden = true;
+    document.getElementById('modal')?.classList.remove('open');
+    document.getElementById('fab-menu')?.classList.remove('open');
+  } catch {}
 
   const p = residentProfile || perfil();
   const canReturnToDocente = isAdscrito();
   const root = document.createElement('div');
   root.id = 'bo-lockdown-root';
-  root.className = 'bo-lockdown is-takeover';
+  root.className = 'bo-lockdown is-takeover is-glitch-hit';
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
   root.setAttribute('aria-label', 'Examen Departamental R2 · Bloqueo Activo');
   document.body.appendChild(root);
   lockdownRoot = root;
 
-  // Sonido de alarma + riser de bloqueo
+  // Vibración háptica intensa en celulares Android compatibles
+  try { navigator.vibrate?.([220, 70, 260, 70, 340, 90, 480]); } catch {}
+
+  // Secuencia sonora de bloqueo de 8 s: alerta + glitch + riser + impacto al final
   playUiSfx('bad');
-  let takeoverAudio = null;
-  try {
-    takeoverAudio = new Audio('assets/sfx/alert.mp3');
-    takeoverAudio.playsInline = true;
-    takeoverAudio.volume = 0.75;
-    takeoverAudio.play().catch(() => {});
-  } catch {}
+  playSynthTakeoverAudio();
+  const alertAudio = makeSfxAudio('alert.mp3', 0.88);
+  const glitchAudio = makeSfxAudio('glitch.mp3', 0.72);
+  const riserAudio = makeSfxAudio('riser.mp3', 0.82);
+  const impactAudio = makeSfxAudio('impacto.mp3', 0.92);
+  const takeoverAudios = [alertAudio, glitchAudio, riserAudio, impactAudio].filter(Boolean);
+  alertAudio?.play().catch(() => {});
+  glitchAudio?.play().catch(() => {});
+
+  const lockSteps = [
+    'Módulos de consulta y resúmenes desconectados',
+    'Asistente IA, copiado y capturas deshabilitados',
+    'Sensor anti-trampa y foco de pantalla armados',
+    `Orden único de ${exam.questionCount || 15} reactivos asignado a ${p.short || p.name}`,
+  ];
 
   root.innerHTML = `
     <canvas class="bo-takeover-canvas" aria-hidden="true"></canvas>
+    <div class="bo-takeover-scanbeam" aria-hidden="true"></div>
+    <div class="bo-takeover-vignette" aria-hidden="true"></div>
+    <div class="bo-takeover-flash" data-bo-flash aria-hidden="true"></div>
     ${canReturnToDocente ? `<button type="button" class="btn btn-sm btn-ghost mono" data-bo-back-docente style="position:fixed;top:14px;right:16px;z-index:999;border-color:rgba(255,90,110,.5)">← Volver a Consola Dra. Hernández</button>` : ''}
     <div class="bo-takeover-stage" data-bo-takeover>
-      <div class="bo-takeover-badge mono">⚠️ PROTOCOLO BLACK OPS · INTERVENCIÓN DOCENTE</div>
-      <div class="bo-takeover-eye">
-        <img src="assets/calot-hero.png?v=20261121x" alt="" width="112" height="112" />
+      <div class="bo-takeover-badge mono"><i class="bo-live-led"></i>PROTOCOLO BLACK OPS · INTERVENCIÓN REMOTA</div>
+      <div class="bo-takeover-reticle" aria-hidden="true">
+        <span class="bo-ret-ring is-a"></span>
+        <span class="bo-ret-ring is-b"></span>
+        <span class="bo-ret-ring is-c"></span>
+        <div class="bo-takeover-eye">
+          <img src="assets/calot-hero.png?v=20261121y" alt="" width="112" height="112" />
+        </div>
       </div>
-      <h1>BLOQUEO GENERAL <em>ACTIVADO</em></h1>
-      <p class="bo-takeover-lead">La <b>Dra. Araceli Hernández Vargas</b> ha suspendido la navegación libre e iniciado el examen de <b>${esc(exam.topicLabel || 'Cirugía General R2')}</b>.</p>
+      <div class="bo-takeover-title-wrap">
+        <p class="bo-takeover-sub mono" data-bo-phase>SEÑAL INTERCEPTADA · CONGELANDO DISPOSITIVO…</p>
+        <h1>DISPOSITIVO <em>BLOQUEADO</em></h1>
+      </div>
+      <p class="bo-takeover-lead">La <b>Dra. Araceli Hernández Vargas</b> activó el examen de <b>${esc(exam.topicLabel || 'Cirugía General R2')}</b>. No salgas de esta pantalla.</p>
+      <ul class="bo-takeover-checks mono" data-bo-checks>
+        ${lockSteps.map((txt, i) => `<li data-bo-step="${i}"><i>⏳</i><span>${esc(txt)}</span></li>`).join('')}
+      </ul>
       <div class="bo-takeover-rules mono">
-        <div><span>RESIDENTE</span><b>${esc(p.name)} (R2)</b></div>
-        <div><span>REACTIVOS</span><b>${exam.questionCount} preguntas (orden único)</b></div>
-        <div><span>TIEMPO LÍMITE</span><b>${exam.durationMin} minutos</b></div>
-        <div><span>VIGILANCIA</span><b>Detector de cambio de pantalla activo</b></div>
+        <div><span>RESIDENTE R2</span><b>${esc(p.name)}</b></div>
+        <div><span>REACTIVOS</span><b>${exam.questionCount} preguntas</b></div>
+        <div><span>TIEMPO</span><b>${exam.durationMin} min</b></div>
+        <div><span>VIGILANCIA</span><b>EN VIVO · HGR 72</b></div>
       </div>
-      <div class="bo-takeover-count mono" data-bo-countdown>INICIANDO EN 5…</div>
+      <div class="bo-takeover-count-box mono">
+        <div class="bo-takeover-bar"><i data-bo-bar></i></div>
+        <div class="bo-takeover-count" data-bo-countdown>INICIANDO EN ${TAKEOVER_SEC}…</div>
+      </div>
     </div>
     <div class="bo-exam-stage" data-bo-exam hidden></div>
     <div class="bo-cheat-modal" data-bo-cheat hidden></div>
   `;
 
-  // Animación Matrix roja de fondo durante la intervención
+  // Animación Matrix roja de fondo + pulso dinámico durante los 8 s
   const canvas = root.querySelector('.bo-takeover-canvas');
   const ctx = canvas.getContext('2d');
+  const flashEl = root.querySelector('[data-bo-flash]');
+  const phaseEl = root.querySelector('[data-bo-phase]');
+  const barEl = root.querySelector('[data-bo-bar]');
+  const stepEls = [...root.querySelectorAll('[data-bo-step]')];
   let rafId = 0;
   let cols = [];
   const resize = () => {
@@ -331,24 +421,43 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     const h = window.innerHeight;
     canvas.width = w;
     canvas.height = h;
-    const n = Math.ceil(w / 72);
-    cols = Array.from({ length: n }, (_, i) => ({ x: i * 72 + 8, y: Math.random() * h, v: 3 + Math.random() * 5 }));
+    const colW = w < 640 ? 58 : 72;
+    const n = Math.ceil(w / colW);
+    cols = Array.from({ length: n }, (_, i) => ({ x: i * colW + 6, y: Math.random() * h, v: 3.5 + Math.random() * 6 }));
   };
   resize();
   window.addEventListener('resize', resize);
 
-  const tokens = ['LOCK::R2', 'HGR_72', 'CALOT//OS', 'NO_EXIT', 'PROCTOR_ON', '0x72F1', 'AUDIT_QX'];
+  const triggerTakeoverFlash = (strong = false) => {
+    if (!flashEl || !root.isConnected) return;
+    flashEl.classList.remove('is-pulse', 'is-bang');
+    void flashEl.offsetWidth;
+    flashEl.classList.add(strong ? 'is-bang' : 'is-pulse');
+  };
+  triggerTakeoverFlash(false);
+
+  const tokens = ['LOCK::R2', 'HGR_72', 'CALOT//OS', 'NO_EXIT', 'PROCTOR_ON', '0x72F1', 'AUDIT_QX', 'AI_OFF', 'SEAL_8S'];
+  const takeoverStartMs = performance.now();
   const drawMatrix = () => {
     if (!root.isConnected) return;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    const elapsed = Math.min(TAKEOVER_SEC, (performance.now() - takeoverStartMs) / 1000);
+    const k = elapsed / TAKEOVER_SEC;
+    const accel = 1 + k * k * 2.8;
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.24 - k * 0.08})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.font = '600 12px "JetBrains Mono", monospace';
-    ctx.fillStyle = 'rgba(255, 42, 72, 0.65)';
     for (const c of cols) {
-      c.y += c.v;
+      c.y += c.v * accel;
       if (c.y > canvas.height + 20) c.y = -16;
+      const hot = Math.random() < (0.1 + k * 0.35);
+      ctx.fillStyle = hot ? 'rgba(255, 130, 148, 0.92)' : `rgba(255, 36, 68, ${0.48 + k * 0.38})`;
       ctx.fillText(tokens[Math.floor(Math.random() * tokens.length)], c.x, c.y);
     }
+    if (k > 0.35 && Math.random() < k * 0.45) {
+      ctx.fillStyle = `rgba(255, 28, 60, ${0.15 + k * 0.25})`;
+      ctx.fillRect(0, Math.random() * canvas.height, canvas.width, 1 + Math.random() * 4);
+    }
+    if (barEl) barEl.style.width = `${Math.round(k * 100)}%`;
     if (root.classList.contains('is-takeover')) {
       rafId = requestAnimationFrame(drawMatrix);
     }
@@ -371,14 +480,26 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   let lastStrikeTs = 0;
   let clockInterval = 0;
   let tauntLoop = null;
+  let baseVpW = window.visualViewport?.width || window.innerWidth;
+  let baseVpH = window.visualViewport?.height || window.innerHeight;
+  let viewportCooldown = 0;
 
-  // Bloquear copiar, pegar y clic derecho durante el examen
+  // Bloquear copiar, pegar, clic derecho e invocación de búsqueda / IA / inspección durante el examen
   const blockEvent = (e) => {
     if (examRunning) e.preventDefault();
+  };
+  const blockShortcuts = (e) => {
+    if (!examRunning) return;
+    const k = String(e.key || '').toLowerCase();
+    if (e.key === 'F12' || ((e.metaKey || e.ctrlKey) && ['c', 'v', 'x', 'a', 'f', 'p', 'u', 's', 'k'].includes(k))) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
   document.addEventListener('contextmenu', blockEvent, true);
   document.addEventListener('copy', blockEvent, true);
   document.addEventListener('cut', blockEvent, true);
+  document.addEventListener('keydown', blockShortcuts, true);
 
   const registerStrike = async (awaySec, reason) => {
     if (!examRunning || root.dataset.submitting) return;
@@ -425,14 +546,14 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   const onWindowBlur = () => {
     if (!examRunning) return;
     if (!hiddenSince) hiddenSince = Date.now();
-    // Si pierde foco en escritorio/multitarea sin ocultar pestaña
+    // Si pierde foco hacia Edge Copilot, panel lateral o multitarea sin ocultar la pestaña
     setTimeout(() => {
       if (!document.hidden && !document.hasFocus() && hiddenSince > 0) {
         const awaySec = Math.max(1, Math.round((Date.now() - hiddenSince) / 1000));
         hiddenSince = 0;
-        registerStrike(awaySec, 'Ventana fuera de foco / multitarea');
+        registerStrike(awaySec, 'Ventana fuera de foco / panel IA o multitarea');
       }
-    }, 1200);
+    }, 380);
   };
 
   const onWindowFocus = () => {
@@ -444,9 +565,32 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     }
   };
 
+  // Detector de pantalla dividida / panel lateral (ej. Copilot sidebar en Edge) sin disparar falsos positivos al rotar
+  const onViewportResize = () => {
+    if (!examRunning) return;
+    const vw = window.visualViewport?.width || window.innerWidth;
+    const vh = window.visualViewport?.height || window.innerHeight;
+    const now = Date.now();
+    const widthDrop = baseVpW - vw;
+    const heightDrop = baseVpH - vh;
+    const flipped = (baseVpW > baseVpH) !== (vw > vh);
+    if (flipped) {
+      baseVpW = vw;
+      baseVpH = vh;
+      return;
+    }
+    if (now - viewportCooldown > 2500 && ((widthDrop > 130 && Math.abs(heightDrop) < 80) || (heightDrop > 190 && Math.abs(widthDrop) < 40))) {
+      viewportCooldown = now;
+      registerStrike(2, 'Panel lateral IA / pantalla dividida detectada');
+    }
+    baseVpW = vw;
+    baseVpH = vh;
+  };
+
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('blur', onWindowBlur);
   window.addEventListener('focus', onWindowFocus);
+  window.visualViewport?.addEventListener('resize', onViewportResize);
 
   const renderCheatWarning = (awaySec = 1) => {
     if (!cheatModal) return;
@@ -646,31 +790,80 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     }
   });
 
-  // Cuenta regresiva de 5 segundos de la intervención antes de mostrar la Pregunta 1
-  let countSec = 5;
+  // Secuencia dramática de 8 segundos para celulares y computadoras antes de abrir la Pregunta 1
+  const markStep = (idx) => {
+    const el = stepEls[idx];
+    if (!el || el.classList.contains('is-done')) return;
+    el.classList.add('is-done');
+    const ic = el.querySelector('i');
+    if (ic) ic.textContent = '🔒';
+    playUiSfx('click');
+  };
+
+  let countSec = TAKEOVER_SEC;
+  const takeoverTimers = [];
+  takeoverTimers.push(setTimeout(() => {
+    if (phaseEl) phaseEl.textContent = 'BLOQUEANDO MÓDULOS DE ESTUDIO E IA…';
+    riserAudio?.play().catch(() => {});
+    markStep(0);
+  }, 900));
+  takeoverTimers.push(setTimeout(() => {
+    markStep(1);
+    triggerTakeoverFlash(false);
+    try { navigator.vibrate?.(120); } catch {}
+  }, 2400));
+  takeoverTimers.push(setTimeout(() => {
+    if (phaseEl) phaseEl.textContent = 'VIGILANCIA ANTI-TRAMPA EN VIVO ARMADA…';
+    markStep(2);
+  }, 4000));
+  takeoverTimers.push(setTimeout(() => {
+    if (phaseEl) phaseEl.textContent = 'IMPACTO INMINENTE · PREPARA TU PANTALLA…';
+    root.classList.add('is-critical');
+    markStep(3);
+    triggerTakeoverFlash(false);
+    try { navigator.vibrate?.([90, 50, 140]); } catch {}
+  }, 5600));
+
   const takeoverInterval = setInterval(() => {
     countSec -= 1;
     if (countSec > 0) {
-      if (countEl) countEl.textContent = `INICIANDO EN ${countSec}…`;
-      playUiSfx('click');
+      if (countEl) {
+        countEl.textContent = countSec <= 3 ? `INICIANDO EN ${countSec}` : `BLOQUEO EN ${countSec} s…`;
+        countEl.classList.toggle('is-final', countSec <= 3);
+      }
+      if (countSec <= 3) {
+        triggerTakeoverFlash(false);
+        playUiSfx('nav');
+        try { navigator.vibrate?.(80); } catch {}
+      }
     } else {
       clearInterval(takeoverInterval);
-      root.classList.remove('is-takeover');
-      takeoverStage.hidden = true;
-      examStage.hidden = false;
-      examRunning = true;
-      tauntLoop = startWaitingTaunts();
-      renderQuestion();
-      if (isLockedByCheat) renderCheatWarning(1);
+      if (countEl) countEl.textContent = 'EVALUACIÓN EN CURSO';
+      triggerTakeoverFlash(true);
+      impactAudio?.play().catch(() => {});
+      try { navigator.vibrate?.(260); } catch {}
 
-      clockInterval = setInterval(() => {
-        const { remSec, text } = formatTimeLeft();
-        const tEl = root.querySelector('[data-bo-timer]');
-        if (tEl) tEl.textContent = `⏱ ${text}`;
-        if (remSec <= 0 && examRunning) {
-          finishAndEvaluate(true);
-        }
-      }, 1000);
+      takeoverTimers.push(setTimeout(() => {
+        if (!root.isConnected) return;
+        root.classList.remove('is-takeover', 'is-glitch-hit', 'is-critical');
+        takeoverStage.hidden = true;
+        examStage.hidden = false;
+        examRunning = true;
+        baseVpW = window.visualViewport?.width || window.innerWidth;
+        baseVpH = window.visualViewport?.height || window.innerHeight;
+        tauntLoop = startWaitingTaunts();
+        renderQuestion();
+        if (isLockedByCheat) renderCheatWarning(1);
+
+        clockInterval = setInterval(() => {
+          const { remSec, text } = formatTimeLeft();
+          const tEl = root.querySelector('[data-bo-timer]');
+          if (tEl) tEl.textContent = `⏱ ${text}`;
+          if (remSec <= 0 && examRunning) {
+            finishAndEvaluate(true);
+          }
+        }, 1000);
+      }, 280));
     }
   }, 1000);
 
@@ -679,14 +872,17 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     cancelAnimationFrame(rafId);
     clearInterval(takeoverInterval);
     clearInterval(clockInterval);
+    takeoverTimers.forEach(clearTimeout);
     tauntLoop?.stop?.();
-    try { takeoverAudio?.pause(); } catch {}
+    takeoverAudios.forEach((a) => { try { a.pause(); a.currentTime = 0; } catch {} });
     window.removeEventListener('resize', resize);
     document.removeEventListener('contextmenu', blockEvent, true);
     document.removeEventListener('copy', blockEvent, true);
     document.removeEventListener('cut', blockEvent, true);
+    document.removeEventListener('keydown', blockShortcuts, true);
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('blur', onWindowBlur);
     window.removeEventListener('focus', onWindowFocus);
+    window.visualViewport?.removeEventListener('resize', onViewportResize);
   };
 }
