@@ -1,9 +1,9 @@
-import { icon } from '../icons.js?v=20261122j';
-import { store, getTopicDomainProgress } from '../store.js?v=20261122j';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122j';
-import { renderTopicRepasaPanel, mountTopicRepasaPanel, getTopicRepasaSummary, studyLinks } from './repasa.js?v=20261122j';
-import { renderTopicJugarPanel, mountTopicJugarPanel, getTopicBlitzBank } from './juegos.js?v=20261122j';
-import { playUiSfx } from '../fx/audio.js?v=20261122j';
+import { icon } from '../icons.js?v=20261122k';
+import { store, getTopicDomainProgress } from '../store.js?v=20261122k';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122k';
+import { renderTopicRepasaPanel, mountTopicRepasaPanel, getTopicRepasaSummary, studyLinks } from './repasa.js?v=20261122k';
+import { renderTopicJugarPanel, mountTopicJugarPanel, getTopicBlitzBank } from './juegos.js?v=20261122k';
+import { playUiSfx } from '../fx/audio.js?v=20261122k';
 import { esc, md, toast, renderCitationChips, extractCitations } from '../ui.js';
 import * as S from '../scroll.js';
 

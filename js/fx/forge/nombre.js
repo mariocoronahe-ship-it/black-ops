@@ -3,7 +3,7 @@
 // Va pegado a la cámara para quedar siempre en el mismo lugar de la pantalla, sin importar el movimiento del escenario.
 
 const VENDOR = new URL('../../../vendor/three/', import.meta.url);
-const FONT_URL = new URL('../../../assets/fonts/space-grotesk-bold.typeface.json?v=20261122j', import.meta.url).href;
+const FONT_URL = new URL('../../../assets/fonts/space-grotesk-bold.typeface.json?v=20261122k', import.meta.url).href;
 
 let kitPromise = null;
 export function loadNameKit() {

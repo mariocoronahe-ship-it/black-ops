@@ -9,9 +9,9 @@
    ========================================================================== */
 
 import { esc } from '../ui.js';
-import { OPTION_LETTERS } from '../fx/exam-import.js?v=20261121z';
-import { examOrderFor } from '../fx/exam-lockdown.js?v=20261121z';
+import { examOrderFor } from '../fx/exam-lockdown.js?v=20261122k';
 
+const clip = (s, n = 70) => { const x = String(s || '').replace(/\s+/g, ' ').trim(); return x.length > n ? `${x.slice(0, n - 1)}…` : x; };
 const STATUS = (pct) => (pct >= 80 ? 'is-good' : pct >= 60 ? 'is-warn' : 'is-bad');
 const STATUS_TXT = (pct) => (pct >= 80 ? 'Bien' : pct >= 60 ? 'Regular' : 'Bajo');
 const fmtS = (s) => (s < 10 ? `${Math.round(s * 10) / 10} s` : s < 90 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${Math.round(s % 60)} s`);
@@ -152,8 +152,9 @@ function liveMatrixHTML(m, exam) {
         if (v != null) {
           const ok = v === m.content.questions[i].answer;
           cls = ok ? 'is-ok' : 'is-bad';
-          txt = OPTION_LETTERS[v];
-          tip += ` · eligió ${OPTION_LETTERS[v]} ${ok ? '✓' : `✗ (correcta ${OPTION_LETTERS[m.content.questions[i].answer]})`}`;
+          const qq = m.content.questions[i];
+          txt = ok ? '✓' : '✗';
+          tip += ` · eligió «${clip(qq.options[v])}» ${ok ? '✓ correcta' : `✗ incorrecta (correcta: «${clip(qq.options[qq.answer])}»)`}`;
         } else tip += ' · sin contestar';
       } else if (i < p.answered) {
         cls = 'is-done';
@@ -200,7 +201,7 @@ function perQuestionHTML(m) {
     const segs = pq.counts.map((c, j) => {
       if (!c) return '';
       const kind = j === pq.q.answer ? 'is-ok' : j === pq.distractor ? 'is-distractor' : 'is-wrong';
-      return `<span class="bo-seg ${kind}" style="flex:${c}" title="${esc(`${OPTION_LETTERS[j]}) ${pq.q.options[j]} — ${c} ${c === 1 ? 'residente' : 'residentes'}${j === pq.q.answer ? ' (correcta)' : ''}`)}">${(c / total) >= 0.12 ? `${OPTION_LETTERS[j]}·${c}` : ''}</span>`;
+      return `<span class="bo-seg ${kind}" style="flex:${c}" title="${esc(`${pq.q.options[j]} — ${c} ${c === 1 ? 'residente' : 'residentes'}${j === pq.q.answer ? ' (correcta)' : ''}`)}">${(c / total) >= 0.12 ? `${c}` : ''}</span>`;
     }).join('');
     return `
       <li class="bo-pq">
@@ -211,7 +212,7 @@ function perQuestionHTML(m) {
           <span class="bo-pq-pct ${pq.pct == null ? '' : STATUS(pq.pct)} mono">${pq.pct == null ? '—' : `${pq.pct}%`}</span>
         </div>
         <div class="bo-pq-bar">${pq.n ? segs : '<span class="bo-seg is-none">sin respuestas aún</span>'}</div>
-        <small class="muted mono">Correcta ${OPTION_LETTERS[pq.q.answer]} · ${pq.ok}/${pq.n} acertaron${pq.distractor >= 0 ? ` · distractor más elegido: ${OPTION_LETTERS[pq.distractor]}` : ''}</small>
+        <small class="muted bo-pq-foot"><span class="bo-pq-ok">✓ Correcta: ${esc(clip(pq.q.options[pq.q.answer], 110))}</span> · <span class="mono">${pq.ok}/${pq.n} acertaron</span>${pq.distractor >= 0 ? ` · <span class="bo-pq-dis">Distractor más elegido: ${esc(clip(pq.q.options[pq.distractor], 110))}</span>` : ''}</small>
       </li>`;
   }).join('');
   return `
@@ -259,13 +260,13 @@ function cheatTimelineHTML(m, exam, now) {
   const end = exam.active ? now : Number(exam.endedAt) || now;
   const span = Math.max(60000, end - start);
   const lanes = m.people.filter((p) => p.r.events.some((e) => e.k !== 'parpadeo' && e.k !== 'cambio'));
-  const KIND = { salida: 'Salió', recarga: 'Recargó/cerró', interrupcion: 'Interrupción', cambio: 'Cambió respuesta' };
+  const KIND = { salida: 'Salió', recarga: 'Recargó/cerró', interrupcion: 'Interrupción', cambio: 'Cambió respuesta', pestana: 'Cambió de pestaña (modo prueba)' };
   const lanesHTML = lanes.map((p) => {
     const marks = p.r.events.filter((e) => e.k !== 'parpadeo' && e.ts).map((e) => {
       const left = Math.max(0, Math.min(100, ((e.ts - (e.k === 'cambio' ? 0 : e.s * 1000) - start) / span) * 100));
       const w = e.k === 'cambio' ? 0 : Math.min(100 - left, ((e.s * 1000) / span) * 100);
       const tip = e.k === 'cambio'
-        ? `${p.r.name} · ${e.ref || ''} y ${e.from ? `cambió ${e.from}→${e.to}` : `contestó ${e.to}`} en P${e.q}`
+        ? `${p.r.name} · ${e.ref || ''} y ${e.from ? 'cambió su respuesta' : 'contestó'} en P${e.q}`
         : `${p.r.name} · ${KIND[e.k]} ${fmtS(e.s)} en P${e.q}${e.why ? ` · ${e.why}` : ''}`;
       return `<i class="bo-tl-mark is-${e.k}" style="left:${left}%;${w ? `width:max(6px, ${w}%)` : ''}" title="${esc(tip)}"></i>`;
     }).join('');
@@ -293,6 +294,37 @@ function cheatTimelineHTML(m, exam, now) {
     </div>
     <h3 class="bo-dash-h3">¿En qué pregunta se salen?</h3>
     <div class="bo-qbars">${bars}</div>`;
+}
+
+const notStarted = (msg) => `<section class="card bo-dash-card" data-wing-enter><p class="muted mono bo-dash-empty">${msg}</p></section>`;
+const isStarted = (rows, exam) => Boolean(exam.startedAt) && (exam.active || exam.ended || rows.some((r) => r.state === 'entregado'));
+
+/** Una sección del tablero para el menú del panel: stats | progreso | ranking | vigilancia. */
+export function dashboardSectionHTML(sec, rows, exam, results, now = Date.now()) {
+  if (!isStarted(rows, exam)) return notStarted('Aún no se ha lanzado ningún examen. Esta sección se llena en cuanto lo lance desde la Consola de examen.');
+  const m = buildDashboard(rows, exam, results);
+  const head = (kicker, title, extra = '') => `<div class="ads-sec-head"><div><p class="mono ads-kicker">${kicker}</p><h2>${title}</h2></div>${extra}</div>`;
+  if (sec === 'stats') {
+    return `<section class="card bo-dash-card bo-dash-hero" data-wing-enter>
+      ${head(`${exam.active ? '🔴 EN VIVO' : 'RESULTADOS'} · ${esc(exam.topicLabel || 'Examen R2')}`, 'Tablero del examen', `<span class="mono muted">${m.N} preguntas · ${m.people.length} residentes</span>`)}
+      ${statsRowHTML(m, exam, now)}
+    </section>
+    ${perQuestionHTML(m)}`;
+  }
+  if (sec === 'progreso') {
+    return `<section class="card bo-dash-card bo-dash-hero" data-wing-enter>${statsRowHTML(m, exam, now)}</section>
+    <section class="card bo-dash-card" data-wing-enter>
+      ${head('PREGUNTA EN VIVO', '¿Dónde va cada residente?', '<span class="mono muted">Toque una casilla para ver el detalle</span>')}
+      ${liveMatrixHTML(m, exam)}
+    </section>`;
+  }
+  if (sec === 'ranking') {
+    return `<section class="card bo-dash-card" data-wing-enter>${head('CLASIFICACIÓN', 'Ranking')}${rankingHTML(m)}</section>`;
+  }
+  if (sec === 'vigilancia') {
+    return `<section class="card bo-dash-card" data-wing-enter>${head('VIGILANCIA ANTI-TRAMPA', 'Salidas e interrupciones')}${cheatTimelineHTML(m, exam, now)}</section>`;
+  }
+  return '';
 }
 
 /** Tablero completo (se inserta después de los indicadores del panel). */

@@ -7,7 +7,7 @@
    ========================================================================== */
 
 import { esc, md } from '../ui.js';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122j';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122k';
 
 const STORE_KEY = 'bo:exam-review'; // + ':<residente>' → [{ sessionId, title, at, items }]
 
@@ -197,7 +197,7 @@ export function reviewSectionHTML(rec, { locked = false } = {}) {
 }
 
 /** Lector del tema completo (dentro de la pantalla bloqueada o como capa sobre la app). */
-export function openTopicReader(item, { allowNavigate = false } = {}) {
+export function openTopicReader(item, { allowNavigate = false, closeLabel = '← Volver a mi repaso' } = {}) {
   const f = item?.frag;
   if (!f) return;
   const topic = TEMARIO_APRENDE.find((t) => t.id === f.topicId);
@@ -209,7 +209,7 @@ export function openTopicReader(item, { allowNavigate = false } = {}) {
   el.setAttribute('aria-modal', 'true');
   el.innerHTML = `
     <div class="bo-reader-bar">
-      <button type="button" class="btn btn-sm btn-ghost" data-bo-reader-close>← Volver a mi repaso</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-bo-reader-close>${esc(closeLabel)}</button>
       ${allowNavigate ? `<a class="btn btn-sm btn-ghost" href="${topicHref(f)}" data-bo-reader-go>Ir al tema en la app →</a>` : ''}
     </div>
     <article class="bo-reader-body">

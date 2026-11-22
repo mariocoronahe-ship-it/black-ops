@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261122j';
-import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, TEST_ALWAYS_A, TEST_MULTI_TAB, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122j';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122j';
+import { store, questions, loadStoreData } from '../store.js?v=20261122k';
+import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, TEST_ALWAYS_A, TEST_MULTI_TAB, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122k';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122k';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122j';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122j';
-import { playCalotEvaluation } from './eval-cinematic.js?v=20261122j';
-import { detectCurrentBrowser } from './browser-check.js?v=20261122j';
+import { playUiSfx } from './audio.js?v=20261122k';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122k';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122k';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122k';
 
 const ENDPOINT = '/api/examen';
 
@@ -107,9 +107,9 @@ async function buildQuestionPool(topic, count, seedStr, correctFirst = false) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261122j'),
-        import('../data/juegos_drive_v1.js?v=20261122j'),
-        import('../data/juegos_drive_v2.js?v=20261122j'),
+        import('../data/juegos_argos.js?v=20261122k'),
+        import('../data/juegos_drive_v1.js?v=20261122k'),
+        import('../data/juegos_drive_v2.js?v=20261122k'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -278,7 +278,7 @@ function showClosedScreen(f) {
 /** «Tu repaso personalizado» dentro de la pantalla de sesión cerrada (solo temas de sus errores). */
 async function renderClosedReview(slot, f) {
   try {
-    const m = await import('./exam-review.js?v=20261122j');
+    const m = await import('./exam-review.js?v=20261122k');
     let rec = m.loadReview(f.id, f.sessionId);
     if (!rec && pendingReview) rec = await pendingReview;
     if (!rec || rec.sessionId !== f.sessionId) {
@@ -372,7 +372,7 @@ export function initExamLockdownMonitor() {
       document.body.appendChild(pillEl);
       pillEl.addEventListener('click', (e) => {
         if (e.target.closest('[data-bo-myerrors]')) {
-          import('./exam-review.js?v=20261122j').then((m) => m.openMyErrors(effectiveResident().id)).catch(() => {});
+          import('./exam-review.js?v=20261122k').then((m) => m.openMyErrors(effectiveResident().id)).catch(() => {});
           return;
         }
         if (e.target.closest('[data-bo-switch]')) {
@@ -425,7 +425,11 @@ export function initExamLockdownMonitor() {
         let exam0 = null;
         try {
           const r0 = await fetch(ENDPOINT, { cache: 'no-store' });
-          if (r0.ok) exam0 = (await r0.json())?.exam || null;
+          if (r0.ok) {
+            const j0 = await r0.json();
+            exam0 = j0?.exam || null;
+            showDocenteMessages(exam0?.msgs, perfilId(), Number(j0?.serverNow) || Date.now());
+          }
         } catch {}
         if (exam0 && !closedStillValid(fc, exam0)) {
           clearClosed();
@@ -468,6 +472,7 @@ export function initExamLockdownMonitor() {
       });
       const exam = res?.exam;
       const me = res?.me;
+      showDocenteMessages(exam?.msgs, p.id, Number(res?.serverNow) || Date.now());
       // Ya entregó en otro dispositivo (o en éste): el servidor lo sabe → sesión cerrada
       if (!isAdscrito() && exam && me?.state === 'entregado' && exam.sessionId && exam.sessionId !== 'lobby-inicial'
         && !exam.released?.[p.id] && !lockdownRoot && !document.querySelector('.eval-overlay')) {
@@ -514,6 +519,98 @@ export function initExamLockdownMonitor() {
   setTimeout(poll, 300);
 }
 
+// ---------------- Mensajes y alertas de la docente ----------------
+const MSG_MAX_AGE = 20 * 60 * 1000; // no se muestran avisos de hace más de 20 min
+const msgSeenKey = (id) => `bo:msg-seen:${id}`;
+function loadSeen(id) {
+  try { return JSON.parse(localStorage.getItem(msgSeenKey(id)) || '[]'); } catch { return []; }
+}
+function markSeen(id, mid) {
+  try {
+    const s = loadSeen(id).filter((x) => x !== mid);
+    s.push(mid);
+    localStorage.setItem(msgSeenKey(id), JSON.stringify(s.slice(-40)));
+  } catch {}
+}
+const msgShownNow = new Set();
+
+/** Tono suave y grave (dos pulsos de seno filtrados), nunca en el dispositivo docente. */
+function playMsgTone(kind) {
+  if (isSilentDevice()) return;
+  const ctx = examCtx();
+  if (!ctx) return;
+  try {
+    if (ctx.state === 'suspended') ctx.resume?.();
+    const t0 = ctx.currentTime + 0.03;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.4;
+    lp.connect(ctx.destination);
+    const notes = kind === 'alerta' ? [[330, 0], [262, 0.32], [330, 0.64]] : [[294, 0], [220, 0.3]];
+    for (const [f, dt] of notes) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(kind === 'alerta' ? 0.22 : 0.16, t0 + dt + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.42);
+      o.connect(g); g.connect(lp);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.46);
+    }
+  } catch {}
+}
+
+function msgTime(at) {
+  try { return new Date(at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+}
+
+function showDocenteMessages(msgs, id, serverNow) {
+  if (!Array.isArray(msgs) || !msgs.length || !id || isAdscrito()) return;
+  const seen = new Set(loadSeen(id));
+  const fresh = msgs.filter((m) => m && m.id && !seen.has(m.id) && !msgShownNow.has(m.id)
+    && (m.to === 'all' || m.to === id) && serverNow - Number(m.at || 0) < MSG_MAX_AGE);
+  for (const m of fresh) {
+    msgShownNow.add(m.id);
+    if (m.kind === 'alerta') showMsgModal(m, id); else showMsgBanner(m, id);
+    playMsgTone(m.kind);
+  }
+}
+
+function showMsgBanner(m, id) {
+  let stack = document.querySelector('.bo-msg-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'bo-msg-stack';
+    stack.setAttribute('aria-live', 'polite');
+    document.body.appendChild(stack);
+  }
+  const el = document.createElement('div');
+  el.className = 'bo-msg-banner';
+  el.setAttribute('role', 'status');
+  el.dataset.boMsg = m.id;
+  el.innerHTML = `<div class="bo-msg-banner__ico" aria-hidden="true">✉</div>
+    <div class="bo-msg-banner__body"><div class="bo-msg-banner__from">Mensaje de la Dra. Hernández · ${esc(msgTime(m.at))}</div>
+    <div class="bo-msg-banner__text">${esc(m.text)}</div></div>
+    <button type="button" class="bo-msg-banner__x" aria-label="Cerrar mensaje">✕</button>`;
+  const close = () => { markSeen(id, m.id); el.classList.add('is-out'); setTimeout(() => el.remove(), 260); };
+  el.querySelector('.bo-msg-banner__x').addEventListener('click', close);
+  stack.appendChild(el);
+  setTimeout(close, 15000);
+}
+
+function showMsgModal(m, id) {
+  const el = document.createElement('div');
+  el.className = 'bo-msg-modal';
+  el.setAttribute('role', 'alertdialog');
+  el.setAttribute('aria-modal', 'true');
+  el.dataset.boMsg = m.id;
+  el.innerHTML = `<div class="bo-msg-modal__card">
+    <div class="bo-msg-modal__tag">⚠ Alerta de la Dra. Hernández · ${esc(msgTime(m.at))}</div>
+    <p class="bo-msg-modal__text">${esc(m.text)}</p>
+    <button type="button" class="bo-msg-modal__ok">Entendido</button></div>`;
+  el.querySelector('.bo-msg-modal__ok').addEventListener('click', () => { markSeen(id, m.id); el.remove(); });
+  document.body.appendChild(el);
+}
+
 function closeLockdownOverlay() {
   if (!lockdownRoot) return;
   try { lockdownRoot._cleanup?.(); } catch {}
@@ -545,7 +642,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122j" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122k" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -1151,7 +1248,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261122j" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122k" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
@@ -1380,7 +1477,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   // ---- Detección de salidas, parpadeos, recargas e interrupciones ----
   const registerExit = (kind, sec, q, why, d) => {
     // Modo prueba con varias pestañas: cambiar de pestaña no se castiga
-    if (TEST_MULTI_TAB && COUNTED.has(kind)) { kind = 'cambio'; why = `${why} · modo prueba (no cuenta)`; }
+    if (TEST_MULTI_TAB && COUNTED.has(kind)) { why = `${EXIT_VERB[kind] || kind} · ${why} · modo prueba (no cuenta)`; kind = 'pestana'; }
     addEvent({ k: kind, q, d, s: sec, why });
     if (COUNTED.has(kind)) {
       if (!silentLock) playUiSfx('bad');
@@ -1742,7 +1839,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         all.push({ stem: q.stem, right });
         if (!a || a.i !== rightIdx) items.push({ n: i + 1, stem: q.stem, picked: a ? q.options[a.i] : 'Sin responder', right });
       });
-      pendingReview = import('./exam-review.js?v=20261122j').then((m) => {
+      pendingReview = import('./exam-review.js?v=20261122k').then((m) => {
         const rec = m.buildReview({ residentId: p.id, sessionId: exam.sessionId, title: exam.topicLabel, items, allQuestions: all, topicHint: isCustom ? '' : exam.topic });
         apiPost({ action: 'review_topics', id: p.id, name: p.name, sessionId: exam.sessionId, topics: m.reviewTopics(rec) }).catch(() => {});
         return rec;

@@ -1,6 +1,6 @@
 // Hojas por subtema del módulo R2 de Recto y Ano (8 hojas).
 // Integra y amplía el contenido doctrinal de temario_aprende_base.js, resúmenes R2 y temario PUEM HGR 72. Ver hoja.js.
-import { sheet } from './hoja.js?v=20261122j';
+import { sheet } from './hoja.js?v=20261122k';
 
 export const R2_RECTO = {
   recto: [

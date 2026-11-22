@@ -3,7 +3,7 @@
 // a -1 dBFS), reverb con pre-delay y reflexiones tempranas, ruido marrón, saturación cálida,
 // ducking de camas bajo golpes y voz, y la preferencia de silencio del usuario.
 
-import { isDocenteSilentDevice } from '../perfil.js?v=20261122j';
+import { isDocenteSilentDevice } from '../perfil.js?v=20261122k';
 const PORTAL_SFX_KEY = 'calot:portal-sfx';
 
 let sharedCtx = null;

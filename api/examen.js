@@ -34,7 +34,7 @@ let qsCache = { stamp: 0, content: null };
 // Pruebas locales: BO_EXAM_MEMORY=1 guarda todo en memoria (no toca la nube compartida)
 const MEMORY_ONLY = process.env.BO_EXAM_MEMORY === '1';
 
-const EVENT_KINDS = new Set(['salida', 'recarga', 'parpadeo', 'interrupcion', 'cambio']);
+const EVENT_KINDS = new Set(['salida', 'recarga', 'parpadeo', 'interrupcion', 'cambio', 'pestana']);
 const MAX_EVENTS = 80;
 
 function redisEnv() {
@@ -412,12 +412,25 @@ export default async function handler(req, res) {
       const now = Date.now();
 
       // ---------------- ACCIONES DOCENTES (Dra. Hernández HE / Dr. Mario 12) ----------------
-      if (['launch', 'stop', 'reopen', 'reset', 'unlock_resident', 'force_finish_resident', 'upload_exam', 'get_exam', 'clear_exam', 'results'].includes(action)) {
+      if (['launch', 'stop', 'reopen', 'reset', 'unlock_resident', 'force_finish_resident', 'upload_exam', 'get_exam', 'clear_exam', 'results', 'send_message'].includes(action)) {
         const code = String(body?.code || '').trim().toLowerCase();
         if (!ADMIN_CODES.has(code)) return send(res, 403, { error: 'forbidden' });
 
         const [exam, residents] = await Promise.all([loadExam(cfg), loadResidents(cfg)]);
         const reply = (ex, rs) => send(res, 200, { ok: true, exam: ex, residents: deriveAll(rs, ex) });
+
+        // Mensajes y alertas de la docente → a todos o a un residente. Viajan en la configuración
+        // del examen (que cada celular ya lee en su pulso), últimos 25.
+        if (action === 'send_message') {
+          const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+          const to = String(body.to || 'all');
+          if (!text) return send(res, 400, { error: 'empty' });
+          if (to !== 'all' && !VALID_R2.has(to)) return send(res, 400, { error: 'invalid_resident' });
+          const msg = { id: `m-${now}-${Math.random().toString(36).slice(2, 6)}`, at: now, to, kind: body.kind === 'alerta' ? 'alerta' : 'mensaje', text };
+          exam.msgs = [...(Array.isArray(exam.msgs) ? exam.msgs : []), msg].slice(-25);
+          await saveExam(cfg, exam);
+          return reply(exam, residents);
+        }
 
         if (action === 'upload_exam') {
           const questions = cleanQuestions(body.questions);
@@ -483,6 +496,7 @@ export default async function handler(req, res) {
             endedAt: 0,
             pardons: {},
             forced: {},
+            msgs: Array.isArray(exam.msgs) ? exam.msgs.slice(-25) : [],
           };
           for (const r of Object.values(residents)) {
             const online = now - (r.lastSeen || 0) < 120000;
@@ -516,6 +530,7 @@ export default async function handler(req, res) {
           const freshExam = defaultExam();
           // El examen cargado por la docente sobrevive al reinicio (solo se borra con «Borrar examen»)
           freshExam.custom = exam.custom || null;
+          freshExam.msgs = Array.isArray(exam.msgs) ? exam.msgs : [];
           const freshRes = {};
           await Promise.all([saveExam(cfg, freshExam), saveResidents(cfg, freshRes)]);
           return reply(freshExam, freshRes);
@@ -641,7 +656,9 @@ export default async function handler(req, res) {
           ...(action === 'review' ? { questions: customContent.questions.map((q) => ({ stem: q.stem, options: q.options })) } : {}),
         }
         : null;
-      return send(res, 200, { ok: true, exam, me: derive(r, exam), serverNow: now, ...(review ? { review } : {}) });
+      // Cada residente solo recibe los mensajes para todos o para él
+      const myMsgs = (Array.isArray(exam.msgs) ? exam.msgs : []).filter((m) => m.to === 'all' || m.to === id);
+      return send(res, 200, { ok: true, exam: { ...exam, msgs: myMsgs }, me: derive(r, exam), serverNow: now, ...(review ? { review } : {}) });
     }
 
     return send(res, 405, { error: 'method_not_allowed' });

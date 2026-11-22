@@ -5,13 +5,14 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261122j';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122j';
+import { icon } from '../icons.js?v=20261122k';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122k';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122j';
-import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122j';
-import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122j';
-import { dashboardHTML } from './adscrito-dashboard.js?v=20261122j';
+import { playUiSfx } from '../fx/audio.js?v=20261122k';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122k';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122k';
+import { dashboardSectionHTML } from './adscrito-dashboard.js?v=20261122k';
+import { say, setMuted as setVoiceMuted, isMuted as isVoiceMuted, isUnlocked as voiceUnlocked, unlockDocenteVoice, welcomeOnce, replayWelcome, onVoiceChange, stopAll as stopVoice } from '../fx/docente-voice.js?v=20261122k';
 
 export const section = 'biblio';
 
@@ -72,7 +73,7 @@ function boardSig(b) {
   try {
     const ex = b?.exam || {};
     const rs = Object.values(b?.residents || {}).map((r) => `${r.id}:${r.state}:${r.section}:${r.answered}:${r.strikes}:${r.locked}:${r.scorePct}:${(r.events || []).length}:${r.browser?.label}:${r.browser?.allowed}`).sort().join('|');
-    return `${ex.active}:${ex.sessionId}:${ex.topic}:${ex.questionCount}:${rs}`;
+    return `${ex.active}:${ex.sessionId}:${ex.topic}:${ex.questionCount}:${(ex.msgs || []).length}:${rs}`;
   } catch {
     return '';
   }
@@ -157,13 +158,14 @@ function stateBadgeHTML(r) {
 }
 
 const fmtS = (s) => (s < 10 ? `${Math.round(s * 10) / 10} s` : `${Math.round(s)} s`);
-const KIND_TXT = { salida: 'salió', recarga: 'recargó/cerró', parpadeo: 'parpadeo', interrupcion: 'interrupción' };
+const KIND_TXT = { salida: 'salió', recarga: 'recargó/cerró', parpadeo: 'parpadeo', interrupcion: 'interrupción', cambio: 'cambio', pestana: 'pestaña' };
 
 function eventText(e) {
   if (e.k === 'cambio') {
-    const what = e.from ? `cambió ${e.from}→${e.to}` : `contestó ${e.to}`;
+    const what = e.from ? 'cambió su respuesta' : 'contestó';
     return `${e.ref || 'salida'} y ${what} en P${e.q}`;
   }
+  if (e.k === 'pestana') return `P${e.q} · ${fmtS(e.s)} · cambió de pestaña (modo prueba, no cuenta)`;
   if (e.k === 'interrupcion') return `P${e.q} · ${fmtS(e.s)} · ${e.why || 'interrupción'}`;
   return `P${e.q} · ${fmtS(e.s)}${e.k === 'recarga' ? ' (recargó/cerró)' : ''}`;
 }
@@ -178,7 +180,7 @@ function antiCheatHTML(r) {
   const exits = r.events.filter((e) => e.k === 'salida' || e.k === 'recarga');
   const blinks = r.events.filter((e) => e.k === 'parpadeo');
   const ints = r.events.filter((e) => e.k === 'interrupcion');
-  const changes = r.events.filter((e) => e.k === 'cambio');
+  const changes = r.events.filter((e) => e.k === 'cambio' || e.k === 'pestana');
   const longest = exits.reduce((m, e) => (!m || e.s > m.s ? e : m), null);
   const parts = [];
   parts.push(exits.length === 0
@@ -216,7 +218,8 @@ function downloadCSV(rows, detail = null) {
     ];
     if (detail?.content) {
       const picks = detail.picks?.[r.id] || [];
-      vals.push(`"${detail.content.questions.map((q, i) => `${i + 1}:${picks[i] == null ? '-' : OPTION_LETTERS[picks[i]]}${picks[i] == null ? '' : picks[i] === q.answer ? '✓' : '✗'}`).join(' ')}"`);
+      const cell = (s) => String(s || '').replace(/\s+/g, ' ').replace(/"/g, "'").trim();
+      vals.push(`"${detail.content.questions.map((q, i) => `P${i + 1}: ${picks[i] == null ? 'sin contestar' : `${cell(q.options[picks[i]])} ${picks[i] === q.answer ? '✓ correcta' : '✗ incorrecta'}`}`).join(' | ')}"`);
     }
     lines.push(vals.join(','));
   }
@@ -327,10 +330,16 @@ function resultsHTML(rowId) {
   const picks = data.picks?.[rowId];
   if (!content) return '<p class="muted mono">El detalle por pregunta solo está disponible con un examen cargado (Word).</p>';
   if (!picks) return '<p class="muted mono">Aún no hay respuestas de este residente.</p>';
-  return `<ol class="bo-results-list mono">${content.questions.map((q, i) => {
+  return `<ol class="bo-results-list">${content.questions.map((q, i) => {
     const p = picks[i];
     const ok = p === q.answer;
-    return `<li class="${p == null ? 'is-none' : ok ? 'is-ok' : 'is-bad'}">P${i + 1}: ${p == null ? 'sin contestar' : `eligió ${OPTION_LETTERS[p]}`} ${p == null ? '' : ok ? '✓' : `✗ (correcta ${OPTION_LETTERS[q.answer]})`}</li>`;
+    const st = p == null ? 'is-none' : ok ? 'is-ok' : 'is-bad';
+    return `<li class="${st}">
+      <div class="bo-res-q"><b class="mono">P${i + 1}</b> ${esc(String(q.stem || '').replace(/\s+/g, ' ').slice(0, 160))}${String(q.stem || '').length > 160 ? '…' : ''}</div>
+      <div class="bo-res-a">${p == null ? '<span class="mono">Sin contestar</span>' : `<span class="bo-res-tag">${ok ? '✓ Correcta' : '✗ Incorrecta'}</span> Eligió: «${esc(q.options[p])}»`}</div>
+      ${p != null && !ok ? `<div class="bo-res-c">Respuesta correcta: «${esc(q.options[q.answer])}»</div>` : ''}
+      <button type="button" class="btn btn-sm btn-ghost bo-res-frag" data-bo-frag="${i}">📕 Ver en la app</button>
+    </li>`;
   }).join('')}</ol>`;
 }
 
@@ -439,6 +448,128 @@ function controlRoomHTML(rows, ex) {
   </section>`;
 }
 
+/* ------------------------------------------------------------------
+   Menú grande del panel docente · secciones
+   ------------------------------------------------------------------ */
+const SEC_KEY = 'bo:panel-sec';
+const SECTIONS = [
+  { id: 'stats', ico: '📊', title: 'Estadísticas', sub: 'Promedio del grupo y qué contestó cada pregunta', c: 'var(--cyan)' },
+  { id: 'progreso', ico: '⏱', title: 'Progreso', sub: 'En qué pregunta va cada residente, en vivo', c: '#3ccf8e' },
+  { id: 'ranking', ico: '🏆', title: 'Ranking', sub: 'Podio y clasificación del grupo', c: '#ffc857' },
+  { id: 'perfiles', ico: '🩺', title: 'Perfiles R2', sub: 'Detalle, respuestas y temas de cada residente', c: '#8ab4ff' },
+  { id: 'vigilancia', ico: '🛰', title: 'Vigilancia en vivo', sub: 'Salidas de pantalla, interrupciones y bloqueos', c: 'var(--crimson)' },
+  { id: 'mensajes', ico: '✉️', title: 'Mensajes y alertas', sub: 'Escriba a todos o a un residente', c: '#c38bff' },
+  { id: 'consola', ico: '🎛', title: 'Consola de examen', sub: 'Subir examen (Word), configurar y lanzar', c: '#ff8a5c' },
+];
+const secById = (id) => SECTIONS.find((x) => x.id === id) || null;
+function getSec() {
+  try { const v = sessionStorage.getItem(SEC_KEY); return secById(v) ? v : 'inicio'; } catch { return 'inicio'; }
+}
+function setSec(v) {
+  try { sessionStorage.setItem(SEC_KEY, v); } catch {}
+}
+
+let msgDraft = { to: 'all', kind: 'mensaje', text: '' };
+let msgBusy = false;
+const MSG_TEMPLATES = [
+  'Quedan 5 minutos: revisen sus respuestas.',
+  'Regresen a la pantalla del examen, por favor.',
+  'Pueden entregar cuando terminen.',
+  'Todo en orden, sigan contestando.',
+];
+
+function tratadoCardHTML(compact = false) {
+  return `<section class="card bo-tratado ${compact ? 'is-compact' : ''}" data-wing-enter>
+    <div class="bo-tratado-ico" aria-hidden="true">📚</div>
+    <div class="bo-tratado-body">
+      <p class="mono ads-kicker">FUENTES DE LA APP</p>
+      <h3>Tratado de Cirugía General y Schwartz</h3>
+      <p>Todo el contenido de CALOT y las preguntas de repaso están basados en el <b>Tratado de Cirugía General</b> y en <b>Schwartz · Principios de Cirugía</b>. Puede consultar ahí la información de cada pregunta; en el detalle de cada residente, el botón <b>«Ver en la app»</b> abre el fragmento del resumen que corresponde.</p>
+    </div>
+  </section>`;
+}
+
+function voiceBarHTML() {
+  const muted = isVoiceMuted();
+  return `<div class="bo-voice-bar" data-bo-voicebar>
+    <button type="button" class="btn btn-sm btn-ghost" data-bo-voice="toggle" aria-pressed="${muted ? 'false' : 'true'}">${muted ? '🔇 Voz guía apagada' : '🔊 Voz guía activa'}</button>
+    <button type="button" class="btn btn-sm btn-ghost" data-bo-voice="replay">↻ Escuchar bienvenida</button>
+    ${voiceUnlocked() || muted ? '' : '<span class="mono bo-voice-hint">Toque cualquier parte para activar la voz</span>'}
+  </div>`;
+}
+
+function menuHTML(rows, ex) {
+  const done = rows.filter((r) => r.state === 'entregado').length;
+  const joined = rows.filter((r) => r.hasJoined).length;
+  const alerts = rows.filter((r) => r.state === 'bloqueado_trampa').length;
+  const exits = rows.reduce((a, r) => a + r.strikes, 0);
+  const prom = done ? Math.round(rows.filter((r) => r.state === 'entregado').reduce((a, r) => a + (r.scorePct || 0), 0) / done) : null;
+  const msgs = Array.isArray(ex.msgs) ? ex.msgs.length : 0;
+  const meta = {
+    stats: prom != null ? `Promedio ${prom}%` : ex.startedAt ? 'En curso' : 'Sin examen aún',
+    progreso: ex.active ? `${rows.filter((r) => r.state === 'en_examen').length} contestando` : `${done} entregados`,
+    ranking: done ? `${done} calificados` : '—',
+    perfiles: `${joined}/${rows.length} conectados`,
+    vigilancia: alerts ? `⚠ ${alerts} bloqueado${alerts === 1 ? '' : 's'}` : `${exits} salida${exits === 1 ? '' : 's'}`,
+    mensajes: msgs ? `${msgs} enviado${msgs === 1 ? '' : 's'}` : 'Ninguno aún',
+    consola: ex.active ? '🔴 Examen en curso' : ex.custom ? `📄 ${ex.custom.count} preguntas listas` : 'Sin examen cargado',
+  };
+  return `<nav class="bo-menu" aria-label="Secciones del panel">
+    ${SECTIONS.map((s) => `<button type="button" class="bo-menu-card ${s.id === 'vigilancia' && alerts ? 'is-hot' : ''}" style="--c:${s.c}" data-bo-sec="${s.id}">
+      <span class="bo-menu-ico" aria-hidden="true">${s.ico}</span>
+      <span class="bo-menu-txt"><b>${s.title}</b><small>${s.sub}</small></span>
+      <span class="bo-menu-meta mono">${esc(meta[s.id] || '')}</span>
+    </button>`).join('')}
+  </nav>`;
+}
+
+function secHeadHTML(sec) {
+  const s = secById(sec);
+  return `<div class="bo-sec-bar" data-wing-enter>
+    <button type="button" class="btn btn-sm btn-ghost bo-sec-back" data-bo-sec="inicio">← Inicio</button>
+    <h2 class="bo-sec-title"><span aria-hidden="true">${s.ico}</span> ${s.title}</h2>
+    <nav class="bo-sec-tabs" aria-label="Otras secciones">${SECTIONS.filter((x) => x.id !== sec).map((x) => `<button type="button" class="bo-sec-tab" data-bo-sec="${x.id}" title="${x.title}">${x.ico}<span>${x.title}</span></button>`).join('')}</nav>
+  </div>`;
+}
+
+function messagesHTML(ex) {
+  const list = (Array.isArray(ex.msgs) ? ex.msgs : []).slice().reverse();
+  const nameOf = (id) => (id === 'all' ? 'Todos' : R2_RESIDENTS.find((r) => r.id === id)?.name || id);
+  const left = 280 - (msgDraft.text || '').length;
+  return `<section class="card bo-msg-card" data-wing-enter data-bo-msgform>
+    <p class="mono ads-kicker">ENVIAR</p>
+    <div class="bo-msg-grid">
+      <label class="bo-field"><span class="mono">PARA</span>
+        <select class="input" data-bo-msg="to">
+          <option value="all" ${msgDraft.to === 'all' ? 'selected' : ''}>Todos los R2</option>
+          ${R2_RESIDENTS.map((r) => `<option value="${r.id}" ${msgDraft.to === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
+        </select>
+      </label>
+      <div class="bo-field"><span class="mono">TIPO</span>
+        <div class="bo-msg-kind" role="radiogroup">
+          <button type="button" role="radio" aria-checked="${msgDraft.kind === 'mensaje'}" class="${msgDraft.kind === 'mensaje' ? 'is-on' : ''}" data-bo-msgkind="mensaje">✉ Mensaje<small>Banner arriba</small></button>
+          <button type="button" role="radio" aria-checked="${msgDraft.kind === 'alerta'}" class="${msgDraft.kind === 'alerta' ? 'is-on is-alert' : ''}" data-bo-msgkind="alerta">⚠ Alerta<small>Ventana + tono suave</small></button>
+        </div>
+      </div>
+    </div>
+    <label class="bo-field"><span class="mono">TEXTO <small class="muted" data-bo-msg-left>${left}</small></span>
+      <textarea class="input bo-msg-text" rows="3" maxlength="280" placeholder="Escriba su mensaje…" data-bo-msg="text">${esc(msgDraft.text || '')}</textarea>
+    </label>
+    <div class="bo-msg-tpl">${MSG_TEMPLATES.map((x, i) => `<button type="button" class="bo-chip" data-bo-msgtpl="${i}">${esc(x)}</button>`).join('')}</div>
+    <button type="button" class="btn btn-glow bo-msg-send" data-bo-act="msg-send" ${msgBusy ? 'disabled' : ''}>${msgBusy ? 'Enviando…' : msgDraft.kind === 'alerta' ? '⚠ Enviar alerta' : '✉ Enviar mensaje'}</button>
+  </section>
+  <section class="card bo-msg-card" data-wing-enter>
+    <p class="mono ads-kicker">ENVIADOS</p>
+    ${list.length ? `<ul class="bo-msg-sent">${list.map((m) => `<li class="${m.kind === 'alerta' ? 'is-alert' : ''}">
+      <span class="mono">${m.kind === 'alerta' ? '⚠' : '✉'} ${esc(nameOf(m.to))} · ${esc(fmtClockTime(m.at))}</span>
+      <p>${esc(m.text)}</p></li>`).join('')}</ul>` : '<p class="muted mono">Todavía no ha enviado mensajes.</p>'}
+  </section>`;
+}
+
+function fmtClockTime(ts) {
+  try { return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+}
+
 export function render() {
   const rows = buildRows();
   const ex = board.exam || {};
@@ -456,26 +587,8 @@ export function render() {
     ? Math.round(entregadosList.reduce((a, r) => a + (r.scorePct || 0), 0) / entregadosList.length)
     : 0;
 
-  return `
-<div class="ads-view">
-  <header class="page-head wing-hero is-stats ads-hero" data-wing-enter>
-    <div class="wing-top-bar">
-      <span class="mono wing-badge">CENTRO DE CONTROL DE EXAMEN R2 · DRA. ARACELI HERNÁNDEZ VARGAS · HGR 72</span>
-      <div class="wing-top-actions">
-        <span class="mono wing-live-pill ads-private"><i class="wing-dot" aria-hidden="true"></i>${ex.active ? '🔴 BLOQUEO Y EXAMEN EN CURSO' : '🟢 SALA EN EXPLORACIÓN LIBRE'}</span>
-        <button type="button" class="btn btn-sm btn-ghost" data-bo-act="switch-card">${icon('arrowL')} Ver tarjetas R2</button>
-      </div>
-    </div>
-    <div class="wing-main-row">
-      <div>
-        <h1>Control de Examen <em>Generación R2</em></h1>
-        <p class="wing-lead">Mientras el examen está inactivo, los ${R2_RESIDENTS.length} residentes R2 pueden elegir su tarjeta y navegar por la plataforma. Al presionar <b>Bloquear plataforma e iniciar examen</b>, a todos se les congela la interfaz con una animación simultánea y comienza la evaluación con detector anti-trampa.</p>
-      </div>
-    </div>
-  </header>
-
-  ${controlRoomHTML(rows, ex)}
-
+  const sec = getSec();
+  const kpisHTML = () => `
   <div class="ads-kpis" data-wing-enter>
     <article class="card lamp" style="--c:var(--cyan)">
       <p class="mono">R2 conectados</p>
@@ -502,12 +615,8 @@ export function render() {
       <div class="big"><span>${okBrowsers}<small>/${withBrowser.length}</small></span></div>
       <p class="muted bo-browser-summary">${okBrowsers} en Safari/Chrome · <b class="${badBrowsers ? 'is-bad' : ''}">${badBrowsers} ${badBrowsers === 1 ? 'navegador no permitido' : 'navegadores no permitidos'}</b></p>
     </article>
-  </div>
-
-  ${dashboardHTML(rows, ex, liveResults)}
-
-  ${customExamCardHTML(ex)}
-
+  </div>`;
+  const consoleHTML = () => `
   <section class="card bo-control-card" data-wing-enter>
     <div class="ads-sec-head">
       <div>
@@ -573,14 +682,134 @@ export function render() {
         </button>
       `}
     </div>
-  </section>
+  </section>`;
 
+  let body = '';
+  if (sec === 'inicio') {
+    body = `${menuHTML(rows, ex)}${tratadoCardHTML()}`;
+  } else if (sec === 'stats') {
+    body = `${secHeadHTML(sec)}${kpisHTML()}${dashboardSectionHTML('stats', rows, ex, liveResults)}`;
+  } else if (sec === 'progreso' || sec === 'ranking') {
+    body = `${secHeadHTML(sec)}${dashboardSectionHTML(sec, rows, ex, liveResults)}`;
+  } else if (sec === 'perfiles') {
+    body = `${secHeadHTML(sec)}${controlRoomHTML(rows, ex)}${tratadoCardHTML(true)}`;
+  } else if (sec === 'vigilancia') {
+    body = `${secHeadHTML(sec)}${vigilanceSummaryHTML(rows, ex)}${dashboardSectionHTML('vigilancia', rows, ex, liveResults)}`;
+  } else if (sec === 'mensajes') {
+    body = `${secHeadHTML(sec)}${messagesHTML(ex)}`;
+  } else if (sec === 'consola') {
+    body = `${secHeadHTML(sec)}${customExamCardHTML(ex)}${consoleHTML()}`;
+  }
+
+  return `
+<div class="ads-view bo-panel is-sec-${sec}">
+  <header class="page-head wing-hero is-stats ads-hero ${sec === 'inicio' ? '' : 'is-compact'}" data-wing-enter>
+    <div class="wing-top-bar">
+      <span class="mono wing-badge">CENTRO DE CONTROL DE EXAMEN R2 · DRA. ARACELI HERNÁNDEZ VARGAS · HGR 72</span>
+      <div class="wing-top-actions">
+        <span class="mono wing-live-pill ads-private"><i class="wing-dot" aria-hidden="true"></i>${ex.active ? '🔴 EXAMEN EN CURSO' : '🟢 EXPLORACIÓN LIBRE'}</span>
+        <button type="button" class="btn btn-sm btn-ghost" data-bo-act="switch-card">${icon('arrowL')} Ver tarjetas R2</button>
+      </div>
+    </div>
+    ${sec === 'inicio' ? `<div class="wing-main-row">
+      <div>
+        <h1>Panel docente <em>Generación R2</em></h1>
+        <p class="wing-lead">Elija una sección. Desde cualquier sección vuelve aquí con <b>← Inicio</b>. Los ${R2_RESIDENTS.length} residentes navegan libres hasta que lance el examen desde la <b>Consola de examen</b>.</p>
+      </div>
+    </div>` : ''}
+    ${voiceBarHTML()}
+  </header>
+
+  ${body}
 </div>`;
 }
 
+function vigilanceSummaryHTML(rows, ex) {
+  const blocked = rows.filter((r) => r.state === 'bloqueado_trampa');
+  const out = rows.filter((r) => r.strikes > 0);
+  const tabs = rows.filter((r) => r.events.some((e) => e.k === 'pestana'));
+  const ints = rows.filter((r) => r.events.some((e) => e.k === 'interrupcion'));
+  const card = (r, why, cls) => `<li class="${cls}"><b>${esc(r.name)}</b><span class="mono">${why}</span>${r.state === 'bloqueado_trampa' ? `<button type="button" class="btn btn-sm btn-glow" data-bo-unlock="${r.id}">🔓 Autorizar</button>` : ''}</li>`;
+  const items = [
+    ...blocked.map((r) => card(r, `🔒 Bloqueado · ${r.strikes} salidas · necesita su autorización`, 'is-blocked')),
+    ...out.filter((r) => r.state !== 'bloqueado_trampa').map((r) => card(r, `🚪 ${r.strikes} salida${r.strikes === 1 ? '' : 's'}`, 'is-out')),
+    ...ints.filter((r) => !out.includes(r)).map((r) => card(r, '🟡 Interrupción (Siri, notificación…)', 'is-int')),
+    ...tabs.map((r) => card(r, `🧪 ${r.events.filter((e) => e.k === 'pestana').length} cambio(s) de pestaña · modo prueba, no cuenta`, 'is-test')),
+  ];
+  return `<section class="card bo-vig" data-wing-enter>
+    <div class="bo-vig-stats">
+      <div class="${blocked.length ? 'is-hot' : ''}"><b>${blocked.length}</b><span class="mono">BLOQUEADOS</span></div>
+      <div><b>${out.length}</b><span class="mono">CON SALIDAS</span></div>
+      <div><b>${ints.length}</b><span class="mono">INTERRUPCIONES</span></div>
+      <div><b>${rows.filter((r) => r.isOnline).length}</b><span class="mono">EN LÍNEA</span></div>
+    </div>
+    ${items.length ? `<ul class="bo-vig-list">${items.join('')}</ul>` : `<p class="muted mono">🟢 ${ex.active ? 'Nadie ha salido de la pantalla.' : 'Sin incidencias registradas.'}</p>`}
+  </section>`;
+}
+
+/* ------------------------------------------------------------------
+   Avisos de voz para la doctora (comparando con la lectura anterior)
+   ------------------------------------------------------------------ */
+let voiceWired = false;
+let voiceSnap = null; // { sessionId, active, res: { id: { st, exits, locked } } }
+const fiveMinSaid = new Set();
+function snapOf(b) {
+  const ex = b?.exam || {};
+  const res = {};
+  for (const r of R2_RESIDENTS) {
+    const x = b?.residents?.[r.id];
+    const ev = Array.isArray(x?.events) ? x.events : [];
+    res[r.id] = {
+      st: x?.state || '',
+      exits: ev.filter((e) => e.k === 'salida' || e.k === 'recarga' || e.k === 'pestana').length,
+      locked: Boolean(x?.locked) || x?.state === 'bloqueado_trampa',
+      joined: Number(x?.lastSeen) > 0 && x?.sessionId === ex.sessionId,
+    };
+  }
+  return { sessionId: ex.sessionId, active: Boolean(ex.active), res };
+}
+function detectVoiceEvents(b) {
+  const next = snapOf(b);
+  const prev = voiceSnap;
+  voiceSnap = next;
+  if (!prev) return; // la primera lectura nunca dispara avisos
+  const sameSession = prev.sessionId === next.sessionId;
+  if (next.active && (!prev.active || !sameSession)) { say('examen-comenzo', { front: true }); return; }
+  if (!next.active || !sameSession) return;
+  let newlyDone = 0;
+  for (const r of R2_RESIDENTS) {
+    const a = prev.res[r.id];
+    const z = next.res[r.id];
+    if (!a || !z) continue;
+    if (z.locked && !a.locked) say(`bloqueado-${r.id}`, { front: true });
+    else if (z.exits > a.exits) say(`salio-${r.id}`);
+    if (z.st === 'entregado' && a.st !== 'entregado') { newlyDone += 1; say(`termino-${r.id}`); }
+  }
+  if (newlyDone) {
+    const inExam = R2_RESIDENTS.filter((r) => next.res[r.id].joined || next.res[r.id].st === 'entregado' || next.res[r.id].st === 'en_examen');
+    if (inExam.length && inExam.every((r) => next.res[r.id].st === 'entregado')) say('todos-terminaron');
+  }
+}
+
 export function mount(root, rerender) {
+  // Voz guía: se desbloquea con el primer gesto dentro del panel
+  if (!voiceWired) {
+    voiceWired = true;
+    // Solo mientras el panel docente está en pantalla
+    const onGesture = () => { if (document.querySelector('.bo-panel')) unlockDocenteVoice(); };
+    document.addEventListener('pointerdown', onGesture, { capture: true, passive: true });
+    document.addEventListener('keydown', onGesture, { capture: true });
+    onVoiceChange(() => {
+      const bar = document.querySelector('.bo-panel [data-bo-voicebar]');
+      if (bar) bar.outerHTML = voiceBarHTML();
+    });
+    window.addEventListener('hashchange', () => { if (!/adscrito/.test(location.hash)) stopVoice(); });
+  }
+  welcomeOnce();
+
   const keep = () => {
     if (!root.isConnected) return;
+    if (document.activeElement?.closest?.('[data-bo-msgform]') && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
     // No redibujar si la doctora tiene abierto un <select> o está editando el examen
     if (document.activeElement && document.activeElement.tagName === 'SELECT') return;
     if (document.activeElement?.closest?.('[data-bo-import]') && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -595,6 +824,7 @@ export function mount(root, rerender) {
         const changed = nextSig !== lastSig;
         board = data;
         lastSig = nextSig;
+        try { detectVoiceEvents(data); } catch {}
         let resChanged = false;
         const ex = data.exam;
         // Tablero en vivo: con examen cargado se traen las respuestas de todos cada ~6 s
@@ -632,6 +862,15 @@ export function mount(root, rerender) {
   clearInterval(clockTimer);
   clockTimer = setInterval(() => {
     if (!root.isConnected) { clearInterval(clockTimer); clockTimer = null; return; }
+    const ex5 = board.exam || {};
+    if (ex5.active && ex5.startedAt && ex5.sessionId && !fiveMinSaid.has(ex5.sessionId)) {
+      const left = ex5.startedAt + (Number(ex5.durationMin) || 20) * 60000 - Date.now();
+      if (left > 0 && left <= 300000) {
+        fiveMinSaid.add(ex5.sessionId);
+        // Solo si ya lo veníamos siguiendo (no al abrir el panel con <4 min)
+        if (voiceSnap && left > 240000) say('cinco-minutos', { front: true });
+      }
+    }
     root.querySelectorAll('[data-bo-clock]').forEach((el) => {
       const end = Number(el.dataset.boClock) || 0;
       if (!end || !board.exam?.active) return;
@@ -654,6 +893,13 @@ export function mount(root, rerender) {
   };
 
   root.addEventListener('input', (e) => {
+    const mEl = e.target.closest('[data-bo-msg]');
+    if (mEl) {
+      msgDraft[mEl.dataset.boMsg] = mEl.value;
+      const left = root.querySelector('[data-bo-msg-left]');
+      if (left) left.textContent = String(280 - (msgDraft.text || '').length);
+      return;
+    }
     const el = e.target.closest('[data-bo-imp]');
     if (!el || !importDraft) return;
     const kind = el.dataset.boImp;
@@ -678,6 +924,8 @@ export function mount(root, rerender) {
       rerenderNow();
       return;
     }
+    const mSel = e.target.closest('select[data-bo-msg]');
+    if (mSel) { msgDraft[mSel.dataset.boMsg] = mSel.value; return; }
     const sel = e.target.closest('[data-bo-cfg]');
     if (!sel) return;
     const key = sel.dataset.boCfg;
@@ -686,6 +934,49 @@ export function mount(root, rerender) {
   });
 
   root.addEventListener('click', async (e) => {
+    const secBtn = e.target.closest('[data-bo-sec]');
+    if (secBtn) {
+      const v = secBtn.dataset.boSec;
+      setSec(v);
+      playUiSfx('click');
+      if (v !== 'inicio') say(`sec-${v}`, { ttl: 6000 });
+      rerender({ keepScroll: false });
+      requestAnimationFrame(() => { try { window.scrollTo({ top: 0 }); root.closest('main, .main, #app')?.scrollTo?.({ top: 0 }); } catch {} });
+      return;
+    }
+    const vBtn = e.target.closest('[data-bo-voice]');
+    if (vBtn) {
+      unlockDocenteVoice();
+      if (vBtn.dataset.boVoice === 'toggle') {
+        const m = !isVoiceMuted();
+        setVoiceMuted(m);
+        toast(m ? 'Voz guía apagada' : 'Voz guía activada');
+      } else {
+        if (isVoiceMuted()) setVoiceMuted(false);
+        replayWelcome();
+      }
+      return;
+    }
+    const kBtn = e.target.closest('[data-bo-msgkind]');
+    if (kBtn) { msgDraft.kind = kBtn.dataset.boMsgkind; rerenderNow(); return; }
+    const tBtn = e.target.closest('[data-bo-msgtpl]');
+    if (tBtn) { msgDraft.text = MSG_TEMPLATES[Number(tBtn.dataset.boMsgtpl)] || ''; rerenderNow(); return; }
+    const fragBtn = e.target.closest('[data-bo-frag]');
+    if (fragBtn) {
+      const q = resultsData?.content?.questions?.[Number(fragBtn.dataset.boFrag)];
+      if (!q) return;
+      try {
+        const rv = await import('../fx/exam-review.js?v=20261122k');
+        const frag = rv.matchFragment(q.stem, q.options[q.answer], (resultsData._topic ??= rv.dominantTopic(resultsData.content.questions.map((x) => ({ stem: x.stem, right: x.options[x.answer] }))) || ''));
+        if (!frag) { toast('No encontré esta pregunta en los resúmenes de la app'); return; }
+        if (!frag.confident) toast('Sin coincidencia exacta: se abre el tema más cercano del resumen');
+        rv.openTopicReader({ frag }, { allowNavigate: false, closeLabel: '← Volver al panel' });
+      } catch (err) {
+        console.error('[panel] Ver en la app falló:', err);
+        toast('No se pudo abrir el resumen');
+      }
+      return;
+    }
     const pickBtn = e.target.closest('[data-bo-imp-pick]');
     if (pickBtn && importDraft) {
       const [qi, oi] = pickBtn.dataset.boImpPick.split(':').map(Number);
@@ -846,6 +1137,25 @@ export function mount(root, rerender) {
                 : `No se pudo guardar el examen (${m || 'sin conexión'}). Intenta de nuevo.`);
       }
       importBusy = false;
+      rerenderNow();
+      return;
+    }
+
+    if (act === 'msg-send') {
+      const text = String(msgDraft.text || '').trim();
+      if (!text) { toast('Escriba el mensaje primero'); root.querySelector('[data-bo-msg="text"]')?.focus(); return; }
+      msgBusy = true;
+      rerenderNow();
+      try {
+        board = await adminExamAction('send_message', { to: msgDraft.to, kind: msgDraft.kind, text });
+        lastSig = boardSig(board);
+        const who = msgDraft.to === 'all' ? 'todos los R2' : (R2_RESIDENTS.find((r) => r.id === msgDraft.to)?.name || msgDraft.to);
+        toast(`${msgDraft.kind === 'alerta' ? '⚠ Alerta' : '✉ Mensaje'} enviado a ${who}`);
+        msgDraft.text = '';
+      } catch (err) {
+        toast(`No se pudo enviar (${String(err?.message || 'sin conexión')})`);
+      }
+      msgBusy = false;
       rerenderNow();
       return;
     }
