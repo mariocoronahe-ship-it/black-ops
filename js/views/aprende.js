@@ -1,9 +1,9 @@
-import { icon } from '../icons.js?v=20261122i';
-import { store, getTopicDomainProgress } from '../store.js?v=20261122i';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122i';
-import { renderTopicRepasaPanel, mountTopicRepasaPanel, getTopicRepasaSummary, studyLinks } from './repasa.js?v=20261122i';
-import { renderTopicJugarPanel, mountTopicJugarPanel, getTopicBlitzBank } from './juegos.js?v=20261122i';
-import { playUiSfx } from '../fx/audio.js?v=20261122i';
+import { icon } from '../icons.js?v=20261122j';
+import { store, getTopicDomainProgress } from '../store.js?v=20261122j';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122j';
+import { renderTopicRepasaPanel, mountTopicRepasaPanel, getTopicRepasaSummary, studyLinks } from './repasa.js?v=20261122j';
+import { renderTopicJugarPanel, mountTopicJugarPanel, getTopicBlitzBank } from './juegos.js?v=20261122j';
+import { playUiSfx } from '../fx/audio.js?v=20261122j';
 import { esc, md, toast, renderCitationChips, extractCitations } from '../ui.js';
 import * as S from '../scroll.js';
 
@@ -335,6 +335,12 @@ function renderCuadernoMissesPanel(topic) {
 export function render(params = {}) {
   if (params.tema && TEMARIO_APRENDE.some((t) => t.id === params.tema)) {
     activeTopicId = params.tema;
+  }
+  if (params.sb) {
+    // Liga directa a una hoja (p. ej. desde «Mis errores del examen»)
+    activeSubblockId = String(params.sb);
+    houseMode = 'leer';
+    activeTab = 'subbloques';
   }
   if (params.casa && ['leer', 'repasar', 'jugar'].includes(params.casa)) {
     houseMode = params.casa;

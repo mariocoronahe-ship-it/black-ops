@@ -2307,19 +2307,19 @@ html.is-embed .bo-sound-chip, body.is-exam-locked .bo-sound-chip { display: none
   position: fixed;
   inset: 0;
   z-index: 2147483000;
-  display: grid;
-  place-items: center;
+  display: block;
   padding: 24px 16px;
-  overflow: hidden;
   background: radial-gradient(120% 80% at 50% 0%, #2a0710 0%, #0a0204 55%, #000 100%);
   color: #f6e9ec;
-  overscroll-behavior: none;
-  touch-action: none;
+  overscroll-behavior: contain;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
 }
 .bo-closed-grid {
-  position: absolute; inset: -50%;
+  position: fixed; inset: -50%;
   background-image:
     linear-gradient(rgba(255, 45, 70, .07) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 45, 70, .07) 1px, transparent 1px);
@@ -2329,7 +2329,7 @@ html.is-embed .bo-sound-chip, body.is-exam-locked .bo-sound-chip { display: none
   pointer-events: none;
 }
 .bo-closed-scan {
-  position: absolute; left: 0; right: 0; height: 120px; top: -120px;
+  position: fixed; left: 0; right: 0; height: 120px; top: -120px;
   background: linear-gradient(180deg, transparent, rgba(255, 45, 70, .12), transparent);
   animation: bo-closed-scan 5.5s ease-in-out infinite;
   pointer-events: none;
@@ -2337,6 +2337,7 @@ html.is-embed .bo-sound-chip, body.is-exam-locked .bo-sound-chip { display: none
 .bo-closed-card {
   position: relative;
   width: min(440px, 100%);
+  margin: max(0px, 6vh) auto 0;
   padding: 28px 22px 22px;
   border-radius: 18px;
   border: 1px solid rgba(255, 45, 70, .38);
@@ -2406,3 +2407,60 @@ body.is-exam-closed > :not(.bo-closed):not(script) { visibility: hidden; }
 }
 .bo-import-q.is-flash { animation: bo-imp-flash 0.5s ease 3; }
 @keyframes bo-imp-flash { 50% { box-shadow: 0 0 0 3px rgba(255, 75, 102, 0.85), 0 0 24px rgba(255, 75, 102, 0.5); } }
+
+/* ==========================================================================
+   Repaso personalizado tras el examen · lector de tema · Mis errores
+   ========================================================================== */
+.bo-closed-review { position: relative; width: min(560px, 100%); margin: 18px auto 40px; }
+.bo-review-loading { text-align: center; font-size: 11px; letter-spacing: .14em; color: #b88791; }
+.bo-review { display: grid; gap: 12px; text-align: left; color: #f1e4e7; }
+.bo-review-title { margin: 6px 0 0; font-size: 20px; font-weight: 800; color: #fff; }
+.bo-review-sub { margin: 0; font-size: 10.5px; letter-spacing: .16em; color: #ffb547; }
+.bo-review-empty { margin: 0; padding: 14px; border-radius: 12px; background: rgba(77, 255, 160, .06); border: 1px solid rgba(77, 255, 160, .25); color: #c9ffe1; }
+.bo-review-card {
+  display: grid; gap: 8px; padding: 14px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(28, 8, 14, .92), rgba(10, 3, 6, .95));
+  border: 1px solid rgba(255, 181, 71, .28);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  min-width: 0;
+}
+.bo-review-n { margin: 0; font-size: 10px; letter-spacing: .2em; color: #ffb547; }
+.bo-review-q { margin: 0; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.bo-review-ans { margin: 0; display: grid; gap: 2px; padding: 8px 10px; border-radius: 9px; font-size: 13.5px; overflow-wrap: anywhere; }
+.bo-review-ans span { font-size: 9.5px; letter-spacing: .18em; }
+.bo-review-ans.is-bad { background: rgba(255, 45, 70, .08); border: 1px solid rgba(255, 45, 70, .3); }
+.bo-review-ans.is-bad span { color: #ff8a9b; }
+.bo-review-ans.is-ok { background: rgba(77, 255, 160, .07); border: 1px solid rgba(77, 255, 160, .3); }
+.bo-review-ans.is-ok span { color: #7dffbf; }
+.bo-review-frag { border-left: 3px solid #ffb547; background: rgba(255, 181, 71, .07); border-radius: 0 10px 10px 0; padding: 8px 12px; min-width: 0; }
+.bo-review-src { margin: 0 0 4px; font-size: 10px; letter-spacing: .08em; color: #ffd9a0; }
+.bo-review-md { font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere; overflow-x: auto; }
+.bo-review-md p, .bo-review-md ul, .bo-review-md ol { margin: 4px 0; }
+.bo-review-md table { font-size: 12px; border-collapse: collapse; }
+.bo-review-md td, .bo-review-md th { border: 1px solid rgba(255, 255, 255, .12); padding: 3px 6px; }
+.bo-review-md mark, .bo-reader-md mark { background: rgba(255, 196, 92, .35); color: inherit; border-radius: 3px; padding: 0 2px; }
+.bo-review-none { margin: 0; font-size: 11px; color: #b88791; }
+.bo-review-open { justify-self: start; max-width: 100%; white-space: normal; text-align: left; }
+.bo-reader {
+  position: fixed; inset: 0; z-index: 2147483100;
+  background: #07090d; color: #e9edf3;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.bo-reader-bar, .bo-myerrors .bo-reader-bar {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  padding: 10px 16px; background: rgba(7, 9, 13, .94); border-bottom: 1px solid rgba(255, 255, 255, .08);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.bo-reader-body { width: min(760px, 100%); margin: 0 auto; padding: 16px 16px 60px; }
+.bo-reader-kicker { margin: 0 0 6px; font-size: 10.5px; letter-spacing: .16em; color: #ffb547; }
+.bo-reader-md { line-height: 1.65; font-size: 15px; overflow-wrap: anywhere; }
+.bo-reader-md table { display: block; overflow-x: auto; font-size: 13px; border-collapse: collapse; }
+.bo-reader-md td, .bo-reader-md th { border: 1px solid rgba(255, 255, 255, .12); padding: 4px 8px; }
+.bo-reader-hit { background: rgba(255, 196, 92, .16); box-shadow: -4px 0 0 #ffb547; border-radius: 6px; padding: 4px 8px; }
+.bo-myerrors { position: fixed; inset: 0; z-index: 9500; background: rgba(4, 5, 8, .96); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.bo-myerrors-inner { width: min(620px, 100%); margin: 0 auto; padding: 0 0 50px; }
+.bo-myerrors .bo-review { padding: 12px 16px; }
+.bo-rc-miss { display: grid; gap: 4px; }
+.bo-rc-miss span { font-size: 9.5px; letter-spacing: .16em; color: #ffb547; }
+.bo-rc-miss ul { margin: 0; padding-left: 16px; font-size: 12px; }

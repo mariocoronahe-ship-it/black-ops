@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261122i';
-import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122i';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122i';
+import { store, questions, loadStoreData } from '../store.js?v=20261122j';
+import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, TEST_ALWAYS_A, TEST_MULTI_TAB, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122j';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122j';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122i';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122i';
-import { playCalotEvaluation } from './eval-cinematic.js?v=20261122i';
-import { detectCurrentBrowser } from './browser-check.js?v=20261122i';
+import { playUiSfx } from './audio.js?v=20261122j';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122j';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122j';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122j';
 
 const ENDPOINT = '/api/examen';
 
@@ -54,10 +54,8 @@ function seededShuffle(arr, seed) {
   return out;
 }
 
-/* MODO DE PRUEBA (temporal): a estos residentes la opción correcta siempre les sale en A
-   (las preguntas y las demás opciones sí se revuelven). Para apagarlo deja la lista vacía
-   aquí y en TEST_ALWAYS_A de api/examen.js. */
-export const TEST_ALWAYS_A = ['r2_mario'];
+// Modos de prueba (TEST_ALWAYS_A, TEST_MULTI_TAB): viven juntos en js/perfil.js
+export { TEST_ALWAYS_A, TEST_MULTI_TAB };
 
 /** Opciones revueltas por residente; en modo de prueba la correcta queda primero (A). */
 function orderOptions(items, seed, correctFirst, isCorrect) {
@@ -109,9 +107,9 @@ async function buildQuestionPool(topic, count, seedStr, correctFirst = false) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261122i'),
-        import('../data/juegos_drive_v1.js?v=20261122i'),
-        import('../data/juegos_drive_v2.js?v=20261122i'),
+        import('../data/juegos_argos.js?v=20261122j'),
+        import('../data/juegos_drive_v1.js?v=20261122j'),
+        import('../data/juegos_drive_v2.js?v=20261122j'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -178,7 +176,10 @@ let blockedRoot = null;
 let pillEl = null;
 let lockedHash = '';
 
-const BROWSER = detectCurrentBrowser();
+const BROWSER = (() => {
+  const b = detectCurrentBrowser();
+  return TEST_MULTI_TAB && !b.allowed ? { ...b, allowed: true, testMode: true } : b;
+})();
 export const currentBrowserInfo = () => BROWSER;
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -194,6 +195,10 @@ function saveLocal(sessionId, id, data) {
   try { localStorage.setItem(storeKey(sessionId, id), JSON.stringify(data)); } catch {}
 }
 
+const hasReview = (id) => {
+  try { return JSON.parse(localStorage.getItem(`bo:exam-review:${id}`) || '[]').length > 0; } catch { return false; }
+};
+
 const fmtSec = (s) => (s < 10 ? `${(Math.round(s * 10) / 10).toString()} s` : `${Math.round(s)} s`);
 
 /** Mientras el examen está activo, ninguna otra vista puede cambiar el hash. */
@@ -205,19 +210,20 @@ export function isExamLockActive() {
    Sesión cerrada permanente: tras entregar, el residente ya no regresa a la app.
    Solo se libera si la docente reinicia, lanza otro examen o lo libera desde su panel.
    ------------------------------------------------------------------ */
-const CLOSED_KEY = 'bo:exam-closed';
+let pendingReview = null; // Promise del repaso recién calculado
+const CLOSED_KEY = 'bo:exam-closed'; // + ':<residente>' (cada pestaña/residente tiene el suyo)
 let closedRoot = null;
-function readClosed() {
-  try { return JSON.parse(localStorage.getItem(CLOSED_KEY) || 'null'); } catch { return null; }
+function readClosed(id = perfilId()) {
+  try { return JSON.parse(localStorage.getItem(`${CLOSED_KEY}:${id}`) || 'null'); } catch { return null; }
 }
 function writeClosed(data) {
-  try { localStorage.setItem(CLOSED_KEY, JSON.stringify(data)); } catch {}
+  try { localStorage.setItem(`${CLOSED_KEY}:${data.id}`, JSON.stringify(data)); } catch {}
 }
-function clearClosed() {
-  try { localStorage.removeItem(CLOSED_KEY); } catch {}
+function clearClosed(id = perfilId()) {
+  try { localStorage.removeItem(`${CLOSED_KEY}:${id}`); } catch {}
 }
 const closedFor = (id) => {
-  const f = readClosed();
+  const f = readClosed(id);
   return f && f.id === id ? f : null;
 };
 
@@ -258,10 +264,52 @@ function showClosedScreen(f) {
   `;
   const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
   root.addEventListener('contextmenu', stop);
+  const slot = document.createElement('div');
+  slot.className = 'bo-closed-review';
+  slot.innerHTML = '<p class="bo-review-loading mono">Preparando tu repaso personalizado…</p>';
+  root.appendChild(slot);
+  renderClosedReview(slot, f);
   document.body.appendChild(root);
   document.body.classList.add('is-exam-locked', 'is-exam-closed');
   closedRoot = root;
   lockedHash = location.hash;
+}
+
+/** «Tu repaso personalizado» dentro de la pantalla de sesión cerrada (solo temas de sus errores). */
+async function renderClosedReview(slot, f) {
+  try {
+    const m = await import('./exam-review.js?v=20261122j');
+    let rec = m.loadReview(f.id, f.sessionId);
+    if (!rec && pendingReview) rec = await pendingReview;
+    if (!rec || rec.sessionId !== f.sessionId) {
+      // Entregó en otro dispositivo: el servidor da la clave y sus respuestas ya selladas
+      try {
+        const r = await apiPost({ action: 'review', id: f.id, name: f.name, sessionId: f.sessionId, browser: BROWSER });
+        const rv = r?.review;
+        if (rv?.questions?.length) {
+          const items = [];
+          const all = [];
+          rv.questions.forEach((q, i) => {
+            const k = rv.key?.[i];
+            if (!Number.isInteger(k)) return;
+            all.push({ stem: q.stem, right: q.options[k] });
+            const pk = rv.picks?.[i];
+            if (pk !== k) items.push({ n: i + 1, stem: q.stem, picked: Number.isInteger(pk) ? q.options[pk] : 'Sin responder', right: q.options[k] });
+          });
+          rec = m.buildReview({ residentId: f.id, sessionId: f.sessionId, title: f.topic, items, allQuestions: all });
+        }
+      } catch {}
+    }
+    if (!slot.isConnected) return;
+    if (!rec) { slot.innerHTML = ''; return; }
+    slot.innerHTML = m.reviewSectionHTML(rec, { locked: true });
+    slot.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-bo-review-open]');
+      if (b) m.openTopicReader(rec.items[Number(b.dataset.boReviewOpen)], { allowNavigate: false });
+    });
+  } catch {
+    if (slot.isConnected) slot.innerHTML = '';
+  }
 }
 
 function hideClosedScreen() {
@@ -314,7 +362,7 @@ export function initExamLockdownMonitor() {
   // Píldora flotante en modo exploración para que el R2 vea quién es o pueda cambiar de tarjeta antes del examen
   const ensureExplorePill = (examActive) => {
     const inGate = Boolean(document.getElementById('boot-gate')) || document.body.classList.contains('is-landing');
-    if (isOnAdscritoView() || examActive || inGate) {
+    if (isOnAdscritoView() || (examActive && !hasReview(effectiveResident().id)) || inGate) {
       if (pillEl) pillEl.hidden = true;
       return;
     }
@@ -323,6 +371,10 @@ export function initExamLockdownMonitor() {
       pillEl.className = 'bo-explore-pill mono';
       document.body.appendChild(pillEl);
       pillEl.addEventListener('click', (e) => {
+        if (e.target.closest('[data-bo-myerrors]')) {
+          import('./exam-review.js?v=20261122j').then((m) => m.openMyErrors(effectiveResident().id)).catch(() => {});
+          return;
+        }
         if (e.target.closest('[data-bo-switch]')) {
           sessionStorage.removeItem(BOOT_KEY);
           sessionStorage.removeItem('calot:booted');
@@ -356,6 +408,7 @@ export function initExamLockdownMonitor() {
       <span class="bo-pill-dot"></span>
       <span>R2 · <b>${esc(p.name)}</b> · Exploración activa</span>
       ${BROWSER.allowed ? '' : `<span class="bo-pill-warn">⚠️ ${esc(BROWSER.name)}: para el examen usa Safari (iPhone) o Chrome (Android)</span>`}
+      ${hasReview(p.id) ? '<button type="button" class="bo-pill-btn mono" data-bo-myerrors style="border-color:rgba(255,196,92,.55);color:#ffd9a0">📕 Mis errores del examen</button>' : ''}
       <button type="button" class="bo-pill-btn mono" data-bo-switch>Cambiar R2</button>
       <button type="button" class="bo-pill-btn mono" data-bo-docente style="border-color:rgba(255,58,82,.55);color:#ff8096">Control Docente (HE)</button>
     `;
@@ -492,7 +545,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122i" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122j" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -1098,7 +1151,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261122i" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122j" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
@@ -1326,6 +1379,8 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
 
   // ---- Detección de salidas, parpadeos, recargas e interrupciones ----
   const registerExit = (kind, sec, q, why, d) => {
+    // Modo prueba con varias pestañas: cambiar de pestaña no se castiga
+    if (TEST_MULTI_TAB && COUNTED.has(kind)) { kind = 'cambio'; why = `${why} · modo prueba (no cuenta)`; }
     addEvent({ k: kind, q, d, s: sec, why });
     if (COUNTED.has(kind)) {
       if (!silentLock) playUiSfx('bad');
@@ -1646,10 +1701,12 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     };
     if (closedFlag) writeClosed(closedFlag);
     let serverMe = null;
+    let serverReview = null;
     for (let tries = 0; tries < 3 && !serverMe; tries++) {
       try {
         const r = await apiPost({ action: 'submit', id: p.id, name: p.name, browser: BROWSER, ...payload(), ...(isCustom ? {} : { correct }), total, answered: answeredCount() });
         serverMe = r?.me || null;
+        serverReview = r?.review || null;
       } catch {
         await new Promise((res) => setTimeout(res, 800));
       }
@@ -1669,6 +1726,29 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       };
     });
 
+    // Repaso personalizado: una tarjeta por pregunta fallada (en el orden que la vio el residente)
+    if (!silentLock) {
+      const items = [];
+      const all = [];
+      qs.forEach((q, i) => {
+        const a = st.answers[i];
+        let rightIdx = q.answer;
+        if (isCustom) {
+          const k = serverReview?.key?.[q.orig];
+          rightIdx = Number.isInteger(k) && q.optMap ? q.optMap.indexOf(k) : -1;
+        }
+        if (rightIdx < 0) return;
+        const right = q.options[rightIdx];
+        all.push({ stem: q.stem, right });
+        if (!a || a.i !== rightIdx) items.push({ n: i + 1, stem: q.stem, picked: a ? q.options[a.i] : 'Sin responder', right });
+      });
+      pendingReview = import('./exam-review.js?v=20261122j').then((m) => {
+        const rec = m.buildReview({ residentId: p.id, sessionId: exam.sessionId, title: exam.topicLabel, items, allQuestions: all, topicHint: isCustom ? '' : exam.topic });
+        apiPost({ action: 'review_topics', id: p.id, name: p.name, sessionId: exam.sessionId, topics: m.reviewTopics(rec) }).catch(() => {});
+        return rec;
+      }).catch(() => null);
+    }
+
     closeLockdownOverlay();
 
     playCalotEvaluation({
@@ -1680,7 +1760,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
       reviewItems,
       sessionEnd: { name: p.name },
       onClose: () => {
-        if (closedFlag) showClosedScreen(readClosed() || closedFlag);
+        if (closedFlag) showClosedScreen(readClosed(p.id) || closedFlag);
         else location.hash = '#/inicio';
       },
     });

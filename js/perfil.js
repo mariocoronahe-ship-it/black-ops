@@ -56,6 +56,20 @@ export function wipeTestersLocalData() {
   } catch {}
 }
 
+// ======================= MODOS DE PRUEBA (temporales) =======================
+/* MODO DE PRUEBA (temporal): a estos residentes la opción correcta siempre les sale en A
+   (las preguntas y las demás opciones sí se revuelven). Para apagarlo deja la lista vacía
+   aquí y en TEST_ALWAYS_A de api/examen.js. */
+export const TEST_ALWAYS_A = ['r2_mario'];
+
+/* MODO DE PRUEBA (temporal): varias pestañas de la computadora, cada una con un residente.
+   - Se aceptan navegadores de escritorio (sin pantalla «Cambia de navegador»).
+   - Cambiar de pestaña no cuenta como salida (queda como «cambio» sin castigo).
+   - Elegir una tarjeta «EN USO» no pide confirmación.
+   Apágalo ANTES del examen real: false aquí y TEST_MULTI_TAB = false en api/examen.js. */
+export const TEST_MULTI_TAB = true;
+// ===========================================================================
+
 export const perfilId = () => {
   // Prioridad por pestaña (sessionStorage) para poder abrir un R2 en una pestaña y a la Dra. Hernández en otra del mismo navegador
   const tabCur = getSS(PERFIL_KEY);

@@ -1,11 +1,11 @@
-import { icon } from '../icons.js?v=20261122i';
-import { store, streak, weekHours, weekSeries, questions, todayISO } from '../store.js?v=20261122i';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122i';
-import { PUEM_SERIAL_CASES } from '../data/repaso_alto_rendimiento.js?v=20261122i';
+import { icon } from '../icons.js?v=20261122j';
+import { store, streak, weekHours, weekSeries, questions, todayISO } from '../store.js?v=20261122j';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122j';
+import { PUEM_SERIAL_CASES } from '../data/repaso_alto_rendimiento.js?v=20261122j';
 import { esc, modal, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122i';
+import { playUiSfx } from '../fx/audio.js?v=20261122j';
 import * as S from '../scroll.js';
-import { mountRankingCard } from './ranking.js?v=20261122i';
+import { mountRankingCard } from './ranking.js?v=20261122j';
 
 export const section = 'biblio';
 

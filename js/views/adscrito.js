@@ -5,13 +5,13 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261122i';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122i';
+import { icon } from '../icons.js?v=20261122j';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122j';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122i';
-import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122i';
-import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122i';
-import { dashboardHTML } from './adscrito-dashboard.js?v=20261122i';
+import { playUiSfx } from '../fx/audio.js?v=20261122j';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122j';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122j';
+import { dashboardHTML } from './adscrito-dashboard.js?v=20261122j';
 
 export const section = 'biblio';
 
@@ -117,6 +117,7 @@ function buildRows() {
       events: Array.isArray(r?.events) ? r.events : [],
       browser: r?.browser || null,
       scorePct: r?.scorePct ?? null,
+      missTopics: Array.isArray(r?.missTopics) ? r.missTopics : [],
       correct: r?.correct || 0,
       total: r?.total || board.exam?.questionCount || 15,
       submittedAt: r?.submittedAt || 0,
@@ -394,6 +395,7 @@ function rosterCardHTML(r, ex, idx) {
         <div class="bo-rc-row">${stateBadgeHTML(r)} ${r.hasJoined ? browserChipHTML(r) : ''}</div>
         <div class="bo-rc-row mono muted">Última señal: ${esc(r.lastSeenLabel)} · ${esc(r.tema)}</div>
         <div class="bo-rc-row">${antiCheatHTML(r)}</div>
+        ${r.state === 'entregado' && r.missTopics?.length ? `<div class="bo-rc-row bo-rc-miss"><span class="mono">TEMAS A REPASAR</span><ul>${r.missTopics.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
         <div class="bo-rc-actions">
           ${r.locked ? `<button type="button" class="btn btn-sm btn-glow" data-bo-unlock="${esc(r.id)}">🔓 Desbloquear</button>` : ''}
           ${r.state === 'entregado' && !ex.released?.[r.id] ? `<button type="button" class="btn btn-sm btn-ghost" data-bo-unlock="${esc(r.id)}" data-bo-release>🔓 Liberar sesión cerrada</button>` : ''}

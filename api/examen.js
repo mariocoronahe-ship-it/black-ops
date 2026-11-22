@@ -18,6 +18,9 @@ const MAX_QUESTIONS = 120;
 /* MODO DE PRUEBA (temporal): la correcta siempre en A para estos residentes.
    Para apagarlo deja vacío este Set y TEST_ALWAYS_A en js/fx/exam-lockdown.js. */
 const TEST_ALWAYS_A = new Set(['r2_mario']);
+/* MODO DE PRUEBA (temporal): acepta navegadores de escritorio para probar con varias pestañas.
+   Apágalo antes del examen real (y TEST_MULTI_TAB en js/fx/exam-lockdown.js). */
+const TEST_MULTI_TAB = true;
 const ADMIN_CODES = new Set(['he', '12']);
 const VALID_R2 = new Set([
   'jesus', 'alina', 'angel_g', 'diana', 'alejandro', 'luis',
@@ -280,7 +283,7 @@ function resetResidentForSession(r, exam, active) {
   r.correct = 0;
   r.total = 0;
   r.submittedAt = 0;
-  delete r.strikes; delete r.strikeLog; delete r.locked; delete r.pardonedStrikes;
+  delete r.strikes; delete r.strikeLog; delete r.locked; delete r.pardonedStrikes; delete r.missTopics;
   r.state = active ? 'en_examen' : 'navegando';
 }
 
@@ -572,7 +575,7 @@ export default async function handler(req, res) {
 
       // Examen cargado por la docente: la calificación se calcula aquí; el celular nunca recibe las respuestas.
       let customContent = null;
-      if (sameSession && exam.active && exam.source === 'custom') {
+      if (sameSession && (exam.active || action === 'review') && exam.source === 'custom') {
         customContent = await loadQuestions(cfg, exam);
         const n = customContent ? customContent.questions.length : (exam.questionCount || 0);
         const src = action === 'submit' ? body.picks : (body.submitted?.picks ?? body.picks);
@@ -589,7 +592,7 @@ export default async function handler(req, res) {
         if (!(exam.active && exam.source === 'custom' && sameSession) || !customContent) {
           return send(res, 409, { error: 'no_questions' });
         }
-        if (r.browser && !r.browser.allowed) return send(res, 403, { error: 'browser_not_allowed' });
+        if (!TEST_MULTI_TAB && r.browser && !r.browser.allowed) return send(res, 403, { error: 'browser_not_allowed' });
         await saveResidents(cfg, residents);
         return send(res, 200, {
           ok: true,
@@ -616,14 +619,29 @@ export default async function handler(req, res) {
         r.submittedAt = now;
       }
 
-      if (!['heartbeat', 'progress', 'strike', 'submit', 'questions'].includes(action)) return send(res, 400, { error: 'unknown_action' });
+      // Temas que el residente debe repasar (los calcula su celular al calificar) → panel docente
+      if (action === 'review_topics' && sameSession) {
+        const list = Array.isArray(body.topics) ? body.topics : [];
+        r.missTopics = list.slice(0, 40).map((x) => String(x || '').slice(0, 90)).filter(Boolean);
+      }
+
+      if (!['heartbeat', 'progress', 'strike', 'submit', 'questions', 'review', 'review_topics'].includes(action)) return send(res, 400, { error: 'unknown_action' });
 
       if (r.state !== 'entregado') {
         if (!exam.active) r.state = 'navegando';
         else if (r.state === 'navegando' || r.state === 'bloqueado_trampa') r.state = 'en_examen';
       }
       await saveResidents(cfg, residents);
-      return send(res, 200, { ok: true, exam, me: derive(r, exam), serverNow: now });
+      // Ya entregado: se le revela la clave para su repaso personalizado (nunca antes de entregar)
+      const review = (action === 'submit' || action === 'review') && sameSession && r.state === 'entregado'
+        && exam.source === 'custom' && customContent
+        ? {
+          key: customContent.questions.map((q) => q.answer),
+          picks: Array.isArray(r.picks) ? r.picks : [],
+          ...(action === 'review' ? { questions: customContent.questions.map((q) => ({ stem: q.stem, options: q.options })) } : {}),
+        }
+        : null;
+      return send(res, 200, { ok: true, exam, me: derive(r, exam), serverNow: now, ...(review ? { review } : {}) });
     }
 
     return send(res, 405, { error: 'method_not_allowed' });
