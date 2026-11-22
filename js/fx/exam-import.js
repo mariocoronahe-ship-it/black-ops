@@ -29,6 +29,12 @@ const OPT_RE = /^\(?([A-Ha-h])\s*[).:\-–]\s*(.*)$/s;
 const ANS_RE = /^(?:respuesta(?:\s+correcta)?|resp\.?|r|correcta|clave)\s*[:=.\-–]\s*\(?([A-Ha-h])\)?\s*\.?$/i;
 const NUM_RE = /^(\d{1,3})\s*[.)\-–:]\s*(.*)$/s;
 const KEY_LINE_RE = /^(\d{1,3})\s*[.)\-–:]?\s*\(?([A-Ha-h])\)?\s*\.?$/;
+// Clave global en un párrafo suelto: «la respuesta correcta es siempre el inciso A»,
+// «todas las respuestas correctas son B», «la respuesta será la letra C»…
+const GLOBAL_KEY_RE = /respuestas?\s+(?:correctas?\s+)?(?:es|son|ser[áa]n?|corresponde[n]?\s+a)\s+(?:siempre\s+)?(?:(?:el|la|al)\s+)?(inciso|opci[oó]n|letra|literal)?\s*\(?([A-Ha-h])\)?(?=[\s.,;:)»"”]|$)/i;
+// Inciso marcado a mano: «A) texto *», «* B) texto», «C) texto ✓»
+const MARK_RE = /^\s*(?:\*+|[✓✔✅☑])\s*|\s*(?:\*+|[✓✔✅☑])\s*$/;
+const ANS_INLINE_RE = /^(?:respuesta(?:\s+correcta)?|resp\.?(?:\s+correcta)?|correcta|clave)\s*[:=.\-–]?\s*(?:(?:el|la)\s+)?(?:inciso|opci[oó]n|letra)?\s*\(?([A-Ha-h])\)?(?:[).:\-–]|\s|$)/i;
 const KEY_HEADER_RE = /^(hoja\s+de\s+)?(respuestas|clave(\s+de\s+respuestas)?|soluciones)\s*:?$/i;
 
 /**
@@ -110,9 +116,10 @@ function parseBlocks(blocks) {
   const answerKey = new Map();
   let cur = null;
   let inKey = false;
+  let globalKey = -1;
 
   const startQuestion = (stem) => {
-    cur = { stem: stem.trim(), options: [], strong: [], answer: -1, answerFrom: '' };
+    cur = { stem: stem.trim(), options: [], strong: [], marked: [], answer: -1, answerFrom: '' };
     questions.push(cur);
   };
 
@@ -147,7 +154,17 @@ function parseBlocks(blocks) {
       continue;
     }
 
-    const am = t.match(ANS_RE);
+    // «La respuesta correcta es siempre el inciso A»: aplica a todas las que no traigan su propia clave
+    const gm = t.match(GLOBAL_KEY_RE);
+    const looksGlobal = gm && (gm[1] || /[A-H]/.test(gm[2])) && !OPT_RE.test(t);
+    if (looksGlobal && (!cur || cur.options.length < 2 || /siempre|todas|cada\s+pregunta|en\s+todos/i.test(t))) {
+      globalKey = gm[2].toUpperCase().charCodeAt(0) - 65;
+      // el resto del párrafo (título/introducción) no es una pregunta
+      continue;
+    }
+
+    const am = t.match(ANS_RE) || (cur && cur.options.length >= 2 ? t.match(ANS_INLINE_RE) : null)
+      || (looksGlobal && cur && cur.options.length >= 2 ? [t, gm[2]] : null);
     if (am && cur) {
       cur.answer = am[1].toUpperCase().charCodeAt(0) - 65;
       cur.answerFrom = 'línea «Respuesta»';
@@ -155,14 +172,16 @@ function parseBlocks(blocks) {
     }
 
     // Incisos: «A) texto», o elementos de una sublista de Word
-    const om = t.match(OPT_RE);
+    const om = t.replace(/^\s*(?:\*+|[✓✔✅☑])\s*/, '').match(OPT_RE);
     const isListOption = listQuestions && b.depth >= 2;
     if (cur && (om || isListOption)) {
       const txt = om ? om[2].trim() : t;
       const letterIdx = om ? om[1].toUpperCase().charCodeAt(0) - 65 : cur.options.length;
       if (letterIdx === cur.options.length || isListOption) {
-        cur.options.push(txt);
+        const mk = MARK_RE.test(txt) || (om && /^\s*(?:\*+|[✓✔✅☑])/.test(t));
+        cur.options.push(txt.replace(MARK_RE, '').trim());
         cur.strong.push(b.strong);
+        cur.marked.push(Boolean(mk));
         continue;
       }
     }
@@ -185,15 +204,20 @@ function parseBlocks(blocks) {
     let answer = q.answer;
     let from = q.answerFrom;
     if (answer < 0) {
+      const markIdx = q.marked.map((m, j) => (m ? j : -1)).filter((j) => j >= 0);
+      if (markIdx.length === 1) { answer = markIdx[0]; from = 'marca * / ✓'; }
+    }
+    if (answer < 0) {
       const strongIdx = q.strong.map((r, j) => (r >= 0.6 ? j : -1)).filter((j) => j >= 0);
       if (strongIdx.length === 1) { answer = strongIdx[0]; from = 'negritas'; }
     }
     const keyN = out.length + 1;
     if (answerKey.has(keyN)) { answer = answerKey.get(keyN); from = 'hoja de respuestas'; }
+    if (answer < 0 && globalKey >= 0 && globalKey < q.options.length) { answer = globalKey; from = 'clave global'; }
     if (!(answer >= 0 && answer < q.options.length)) { answer = -1; from = ''; }
     out.push({ stem: q.stem, options: q.options, answer, answerFrom: from });
   });
-  return { questions: out, warnings };
+  return { questions: out, warnings, globalKey: globalKey >= 0 ? String.fromCharCode(65 + globalKey) : null };
 }
 
 export async function parseExamFile(file) {

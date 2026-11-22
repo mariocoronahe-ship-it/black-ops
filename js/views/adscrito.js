@@ -5,13 +5,13 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261122h';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122h';
+import { icon } from '../icons.js?v=20261122i';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122i';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122h';
-import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122h';
-import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122h';
-import { dashboardHTML } from './adscrito-dashboard.js?v=20261122h';
+import { playUiSfx } from '../fx/audio.js?v=20261122i';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122i';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122i';
+import { dashboardHTML } from './adscrito-dashboard.js?v=20261122i';
 
 export const section = 'biblio';
 
@@ -253,6 +253,8 @@ function importEditorHTML() {
       <p class="mono bo-import-summary ${missing ? 'is-bad' : 'is-ok'}">
         ${d.questions.length} preguntas leídas · ${missing ? `<b>${missing} sin respuesta correcta</b> — tóquela abajo` : '✓ todas tienen respuesta correcta'}
       </p>
+      ${d.globalKey ? `<p class="mono bo-import-summary is-ok">🔑 Clave global detectada: inciso ${esc(d.globalKey)}</p>` : ''}
+      ${missing ? `<div class="bo-import-actions"><button type="button" class="btn btn-sm btn-ghost" data-bo-act="import-fill-a">Marcar A como correcta en las ${missing} que faltan</button></div>` : ''}
       ${d.warnings.length ? `<ul class="bo-import-warn mono">${d.warnings.slice(0, 6).map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
       <ol class="bo-import-list">
         ${d.questions.map((q, qi) => `
@@ -271,7 +273,7 @@ function importEditorHTML() {
       </ol>
       <div class="bo-import-actions">
         <button type="button" class="btn btn-ghost" data-bo-act="import-cancel">Cancelar</button>
-        <button type="button" class="btn btn-glow" data-bo-act="import-save" ${missing || !d.questions.length || importBusy ? 'disabled' : ''}>🔒 Guardar examen (${d.questions.length} preguntas)</button>
+        <button type="button" class="btn btn-glow" data-bo-act="import-save" ${!d.questions.length || importBusy ? 'disabled' : ''}>${importBusy ? 'Guardando…' : `🔒 Guardar examen (${d.questions.length} preguntas)`}</button>
       </div>
     </div>`;
 }
@@ -294,7 +296,7 @@ function customExamCardHTML(ex) {
   } else {
     body = `
       <div class="bo-import-empty" data-bo-import>
-        <p class="muted">Sube el Word (.docx) con sus preguntas. La respuesta correcta se detecta si el inciso está en <b>negritas</b>, si hay una línea «Respuesta: C» o una hoja de respuestas al final. Antes de guardar podrá revisar y corregir todo.</p>
+        <p class="muted">Sube el Word (.docx) con sus preguntas. La respuesta correcta se detecta si el inciso está en <b>negritas</b> o marcado con * o ✓, si hay una línea «Respuesta: C», una hoja de respuestas al final («1-A, 2-C») o una nota como «la respuesta correcta es siempre el inciso A». Antes de guardar podrá revisar y corregir todo.</p>
         <label class="btn btn-glow bo-file-btn">
           ${importBusy ? 'Leyendo…' : '📄 Elegir archivo Word (.docx)'}
           <input type="file" accept=".docx,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" data-bo-imp-file hidden />
@@ -641,6 +643,7 @@ export function mount(root, rerender) {
       title: title || 'Examen departamental R2',
       questions: parsed.questions.map((q) => ({ ...q, options: [...q.options] })),
       warnings: parsed.warnings || [],
+      globalKey: parsed.globalKey || null,
     };
     if (!importDraft.questions.length) {
       toast('No encontré preguntas. Revisa que cada inciso empiece con A), B), C)…');
@@ -785,12 +788,38 @@ export function mount(root, rerender) {
       rerenderNow();
       return;
     }
+    if (act === 'import-fill-a' && importDraft) {
+      importDraft.questions.forEach((q) => {
+        if (!(q.answer >= 0)) { q.answer = 0; q.answerFrom = 'A en las que faltaban'; }
+      });
+      rerenderNow();
+      return;
+    }
+
     if (act === 'import-save' && importDraft) {
+      const goTo = (qi, msg) => {
+        toast(msg);
+        const li = root.querySelectorAll('.bo-import-q')[qi];
+        if (li) {
+          li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          li.classList.add('is-flash');
+          setTimeout(() => li.classList.remove('is-flash'), 1600);
+        }
+      };
+      const missingIdx = importDraft.questions.map((q, i) => (q.answer >= 0 ? -1 : i)).filter((i) => i >= 0);
+      if (missingIdx.length) {
+        goTo(missingIdx[0], `Faltan ${missingIdx.length} respuesta${missingIdx.length === 1 ? '' : 's'} correcta${missingIdx.length === 1 ? '' : 's'} · toca el inciso correcto o usa «Marcar A»`);
+        return;
+      }
+      const badIdx = importDraft.questions.findIndex((q) => !String(q.stem || '').trim() || q.options.filter((o) => String(o || '').trim()).length < 2 || q.options.some((o) => !String(o || '').trim()));
+      if (badIdx >= 0) {
+        goTo(badIdx, `La pregunta ${badIdx + 1} tiene el enunciado o algún inciso vacío`);
+        return;
+      }
       const qsList = importDraft.questions
-        .map((q) => ({ stem: String(q.stem || '').trim(), options: q.options.map((o) => String(o || '').trim()), answer: q.answer }))
-        .filter((q) => q.stem);
-      if (qsList.some((q) => !(q.answer >= 0) || q.options.filter(Boolean).length < 2 || q.options.some((o) => !o))) {
-        toast('Cada pregunta necesita enunciado, incisos llenos y respuesta correcta');
+        .map((q) => ({ stem: String(q.stem || '').trim(), options: q.options.map((o) => String(o || '').trim()), answer: q.answer }));
+      if (board.exam?.active) {
+        toast('Hay un examen en curso: finalízalo antes de guardar uno nuevo');
         return;
       }
       importBusy = true;
@@ -803,10 +832,16 @@ export function mount(root, rerender) {
         });
         lastSig = boardSig(board);
         importDraft = null;
-        formDraft.source = 'auto';
-        toast(`🔒 Examen guardado cifrado (${qsList.length} preguntas)`);
+        formDraft.source = 'custom'; // la consola pasa sola a este examen
+        toast(`🔒 Examen guardado cifrado (${qsList.length} preguntas) · listo en la Consola de Mando`);
       } catch (err) {
-        toast(String(err?.message || '').includes('500') ? 'El servidor no tiene configurada la clave de cifrado' : 'No se pudo guardar el examen');
+        const m = String(err?.message || '');
+        console.error('[examen] upload_exam falló:', m);
+        toast(m.includes('no_secret') ? 'El servidor no tiene configurada la clave de cifrado'
+          : m.includes('exam_active') ? 'Hay un examen en curso: finalízalo antes de guardar uno nuevo'
+            : m.includes('bad_questions') ? 'El servidor rechazó alguna pregunta (revisa incisos y respuesta)'
+              : m.includes('413') ? 'El examen es demasiado grande para guardarse'
+                : `No se pudo guardar el examen (${m || 'sin conexión'}). Intenta de nuevo.`);
       }
       importBusy = false;
       rerenderNow();

@@ -1,5 +1,5 @@
 // R4 · tórax y trasplante: desarrollo completo por subtema. Ver hoja.js.
-import { sheet } from './hoja.js?v=20261122h';
+import { sheet } from './hoja.js?v=20261122i';
 
 export const R4B = {
   'ap-r4-torax': [

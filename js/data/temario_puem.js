@@ -1,11 +1,11 @@
 // Índice unificado del temario PUEM (R1–R4) para la sección Resúmenes.
 // R2 enlaza a los resúmenes completos de TEMARIO_APRENDE; R1, R3 y R4 traen resumen esencial por subtema y,
 // cuando hay resumen de Drive para el tema, enlazan también a su módulo de Aprende (ap-<id del tema>).
-import { TEMARIO_APRENDE, TEMARIO_APRENDE_BASE } from './temario_aprende.js?v=20261122h';
+import { TEMARIO_APRENDE, TEMARIO_APRENDE_BASE } from './temario_aprende.js?v=20261122i';
 import { TEMARIO_R1 } from './temario_r1.js';
 import { TEMARIO_R3 } from './temario_r3.js';
 import { TEMARIO_R4 } from './temario_r4.js';
-import { canSee, isOwner } from '../perfil.js?v=20261122h';
+import { canSee, isOwner } from '../perfil.js?v=20261122i';
 
 // Solo los años que el perfil activo puede ver (Daniela: hasta R3)
 export const YEARS = ['R1', 'R2', 'R3', 'R4'].filter(canSee);

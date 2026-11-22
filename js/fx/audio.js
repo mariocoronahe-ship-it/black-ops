@@ -1,7 +1,7 @@
 // CALOT-OS — Web Audio API Ambient & UI SFX Console Engine
 // Comparte contexto, bus maestro (limitador a -1 dBFS) y reverb con portal-audio.js.
-import { isDocenteSilentDevice } from '../perfil.js?v=20261122h';
-import { getEngine, addDuckTarget, removeDuckTarget, unlockPortalAudio } from './portal-audio.js?v=20261122h';
+import { isDocenteSilentDevice } from '../perfil.js?v=20261122i';
+import { getEngine, addDuckTarget, removeDuckTarget, unlockPortalAudio } from './portal-audio.js?v=20261122i';
 
 const STORAGE_KEY = 'calot:audio-v1';
 const UNMUTE_MIGRATION_KEY = 'calot:audio-unmute-v2';
