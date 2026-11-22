@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261122g';
-import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122g';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122g';
+import { store, questions, loadStoreData } from '../store.js?v=20261122h';
+import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122h';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122h';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122g';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122g';
-import { playCalotEvaluation } from './eval-cinematic.js?v=20261122g';
-import { detectCurrentBrowser } from './browser-check.js?v=20261122g';
+import { playUiSfx } from './audio.js?v=20261122h';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122h';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122h';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122h';
 
 const ENDPOINT = '/api/examen';
 
@@ -54,6 +54,19 @@ function seededShuffle(arr, seed) {
   return out;
 }
 
+/* MODO DE PRUEBA (temporal): a estos residentes la opción correcta siempre les sale en A
+   (las preguntas y las demás opciones sí se revuelven). Para apagarlo deja la lista vacía
+   aquí y en TEST_ALWAYS_A de api/examen.js. */
+export const TEST_ALWAYS_A = ['r2_mario'];
+
+/** Opciones revueltas por residente; en modo de prueba la correcta queda primero (A). */
+function orderOptions(items, seed, correctFirst, isCorrect) {
+  if (!correctFirst) return seededShuffle(items, seed);
+  const right = items.filter(isCorrect);
+  if (right.length !== 1) return seededShuffle(items, seed);
+  return [right[0], ...seededShuffle(items.filter((x) => !isCorrect(x)), seed)];
+}
+
 /** Orden de preguntas que vio un residente (posición mostrada → pregunta original) en un examen cargado. */
 export function examOrderFor(sessionId, residentId, n) {
   return seededShuffle(Array.from({ length: n }, (_, i) => i), `${sessionId}:${residentId}:questions`);
@@ -87,14 +100,14 @@ export async function adminExamAction(action, extra = {}) {
 }
 
 let cachedPool = null;
-async function buildQuestionPool(topic, count, seedStr) {
+async function buildQuestionPool(topic, count, seedStr, correctFirst = false) {
   if (!cachedPool) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261122g'),
-        import('../data/juegos_drive_v1.js?v=20261122g'),
-        import('../data/juegos_drive_v2.js?v=20261122g'),
+        import('../data/juegos_argos.js?v=20261122h'),
+        import('../data/juegos_drive_v1.js?v=20261122h'),
+        import('../data/juegos_drive_v2.js?v=20261122h'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -143,7 +156,7 @@ async function buildQuestionPool(topic, count, seedStr) {
       txt: String(txt).replace(/^[A-Da-d][).:\-]\s*/, ''),
       isCorrect: i === q.answer,
     }));
-    const shuffledOpts = seededShuffle(indexedOpts, `${seedStr}:opts:${idx}`);
+    const shuffledOpts = orderOptions(indexedOpts, `${seedStr}:opts:${idx}`, correctFirst, (o) => o.isCorrect);
     return {
       id: q.id || `q-${idx}`,
       stem: q.stem,
@@ -475,7 +488,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122g" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122h" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -1081,7 +1094,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261122g" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122h" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
@@ -1195,10 +1208,11 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
   if (isCustom) {
     // Examen cargado por la docente: el servidor manda enunciados e incisos SIN la respuesta correcta
     let list = null;
+    let testKey = null; // solo llega en modo de prueba (TEST_ALWAYS_A)
     for (let tries = 0; tries < 40 && root.isConnected && !list; tries++) {
       try {
         const r = await apiPost({ action: 'questions', id: p.id, name: p.name, sessionId: exam.sessionId, browser: BROWSER });
-        if (Array.isArray(r?.questions) && r.questions.length) list = r.questions;
+        if (Array.isArray(r?.questions) && r.questions.length) { list = r.questions; testKey = Array.isArray(r.testKey) ? r.testKey : null; }
       } catch {}
       if (!list) await new Promise((res) => setTimeout(res, 1500));
     }
@@ -1211,11 +1225,12 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
     const order = seededShuffle(list.map((_, i) => i), `${seedStr}:questions`);
     qs = order.map((orig) => {
       const q = list[orig];
-      const opts = seededShuffle(q.options.map((txt, i) => ({ txt, i })), `${seedStr}:opts:${orig}`);
+      const key = testKey && TEST_ALWAYS_A.includes(p.id) ? testKey[orig] : null;
+      const opts = orderOptions(q.options.map((txt, i) => ({ txt, i })), `${seedStr}:opts:${orig}`, key != null, (o) => o.i === key);
       return { orig, stem: q.stem, options: opts.map((o) => o.txt), optMap: opts.map((o) => o.i), answer: -1, explanation: '' };
     });
   } else {
-    qs = await buildQuestionPool(exam.topic, exam.questionCount || 15, seedStr);
+    qs = await buildQuestionPool(exam.topic, exam.questionCount || 15, seedStr, TEST_ALWAYS_A.includes(p.id));
   }
   if (!root.isConnected) return;
   const examStage = root.querySelector('[data-bo-exam]');

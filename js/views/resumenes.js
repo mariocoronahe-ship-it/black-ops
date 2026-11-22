@@ -1,10 +1,10 @@
 // Resúmenes · Temario PUEM R1–R4: Portada editorial (Por Año / Por Tema) + Catálogo filtrable.
-import { icon } from '../icons.js?v=20261122g';
-import { store } from '../store.js?v=20261122g';
+import { icon } from '../icons.js?v=20261122h';
+import { store } from '../store.js?v=20261122h';
 import { esc, toast } from '../ui.js';
 import * as S from '../scroll.js';
-import { TEMARIO_PUEM, YEARS, SISTEMAS, temaById, temaSistemas, subtemaSistema, isMine } from '../data/temario_puem.js?v=20261122g';
-import { isOwner, perfil, allowedYear } from "../perfil.js?v=20261122g";
+import { TEMARIO_PUEM, YEARS, SISTEMAS, temaById, temaSistemas, subtemaSistema, isMine } from '../data/temario_puem.js?v=20261122h';
+import { isOwner, perfil, allowedYear } from "../perfil.js?v=20261122h";
 
 export const section = 'cuaderno';
 

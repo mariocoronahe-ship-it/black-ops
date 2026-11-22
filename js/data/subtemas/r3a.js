@@ -1,5 +1,5 @@
 // R3 · intestino, hígado y vías biliares: una hoja por subtema (desarrollo completo). Ver hoja.js.
-import { sheet } from './hoja.js?v=20261122g';
+import { sheet } from './hoja.js?v=20261122h';
 
 export const R3A = {
   'ap-r3-intestino': [

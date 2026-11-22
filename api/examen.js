@@ -15,6 +15,9 @@ const KEY_QS = 'blackops:examen:qs:v1';
 const CLOUD_QS_CODE = 'BLACKOPS-EXAM-QS-R2-HGR72-2026-V1';
 const MAX_QUESTIONS = 120;
 
+/* MODO DE PRUEBA (temporal): la correcta siempre en A para estos residentes.
+   Para apagarlo deja vacío este Set y TEST_ALWAYS_A en js/fx/exam-lockdown.js. */
+const TEST_ALWAYS_A = new Set(['r2_mario']);
 const ADMIN_CODES = new Set(['he', '12']);
 const VALID_R2 = new Set([
   'jesus', 'alina', 'angel_g', 'diana', 'alejandro', 'luis',
@@ -593,6 +596,8 @@ export default async function handler(req, res) {
           exam,
           me: derive(r, exam),
           questions: customContent.questions.map((q) => ({ stem: q.stem, options: q.options })),
+          // Modo de prueba: solo a estos residentes se les manda la clave para poner la correcta en A
+          ...(TEST_ALWAYS_A.has(id) ? { testKey: customContent.questions.map((q) => q.answer) } : {}),
         });
       }
 
