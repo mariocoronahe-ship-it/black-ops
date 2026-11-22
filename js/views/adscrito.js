@@ -5,14 +5,14 @@
    (salidas de pantalla, desbloqueo remoto) y descarga de calificaciones en CSV.
    ========================================================================== */
 
-import { icon } from '../icons.js?v=20261122k';
-import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122k';
+import { icon } from '../icons.js?v=20261122l';
+import { R2_RESIDENTS, isOwner, setPerfil, markBody } from '../perfil.js?v=20261122l';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from '../fx/audio.js?v=20261122k';
-import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122k';
-import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122k';
-import { dashboardSectionHTML } from './adscrito-dashboard.js?v=20261122k';
-import { say, setMuted as setVoiceMuted, isMuted as isVoiceMuted, isUnlocked as voiceUnlocked, unlockDocenteVoice, welcomeOnce, replayWelcome, onVoiceChange, stopAll as stopVoice } from '../fx/docente-voice.js?v=20261122k';
+import { playUiSfx } from '../fx/audio.js?v=20261122l';
+import { fetchExamBoard, adminExamAction, currentBrowserInfo } from '../fx/exam-lockdown.js?v=20261122l';
+import { parseExamFile, parseExamText, OPTION_LETTERS } from '../fx/exam-import.js?v=20261122l';
+import { dashboardSectionHTML } from './adscrito-dashboard.js?v=20261122l';
+import { say, setMuted as setVoiceMuted, isMuted as isVoiceMuted, isUnlocked as voiceUnlocked, unlockDocenteVoice, welcomeOnce, replayWelcome, onVoiceChange, stopAll as stopVoice } from '../fx/docente-voice.js?v=20261122l';
 
 export const section = 'biblio';
 
@@ -966,7 +966,7 @@ export function mount(root, rerender) {
       const q = resultsData?.content?.questions?.[Number(fragBtn.dataset.boFrag)];
       if (!q) return;
       try {
-        const rv = await import('../fx/exam-review.js?v=20261122k');
+        const rv = await import('../fx/exam-review.js?v=20261122l');
         const frag = rv.matchFragment(q.stem, q.options[q.answer], (resultsData._topic ??= rv.dominantTopic(resultsData.content.questions.map((x) => ({ stem: x.stem, right: x.options[x.answer] }))) || ''));
         if (!frag) { toast('No encontré esta pregunta en los resúmenes de la app'); return; }
         if (!frag.confident) toast('Sin coincidencia exacta: se abre el tema más cercano del resumen');

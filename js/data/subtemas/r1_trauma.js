@@ -1,6 +1,6 @@
 // R1 · trauma: los cuatro niveles de Drive (R1-R4) repetían ATLS, tríada letal y control de daños;
 // aquí quedan una sola vez, repartidos por región anatómica.
-import { sheet } from './hoja.js?v=20261122k';
+import { sheet } from './hoja.js?v=20261122l';
 
 export const R1_TRAUMA = {
   'ap-r1-trauma': [

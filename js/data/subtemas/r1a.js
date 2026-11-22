@@ -1,6 +1,6 @@
 // R1 · fundamentos (1/2): profesionalismo, técnica, respuesta al trauma, perioperatorio, líquidos y cicatrización.
 // Desarrollo de tema completo por subtema (base: material de Drive «CALOT-OS COMPLETO» + Sabiston, Schwartz, GPC IMSS).
-import { sheet } from './hoja.js?v=20261122k';
+import { sheet } from './hoja.js?v=20261122l';
 
 export const R1A = {
   'ap-r1-profesionalismo': [

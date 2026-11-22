@@ -38,7 +38,7 @@ export const DOCENTE_LINES = (() => {
   for (const [id, n] of DOCENTE_R2) {
     out[`salio-${id}`] = `Atención, doctora: ${n} salió del examen.`;
     out[`termino-${id}`] = `${n} ya terminó.`;
-    out[`bloqueado-${id}`] = `Atención, doctora: ${n} fue bloqueado por salir dos veces y necesita su autorización.`;
+    out[`bloqueado-${id}`] = `Atención, doctora: ${n} salió dos veces y necesita su autorización.`;
   }
   return out;
 })();

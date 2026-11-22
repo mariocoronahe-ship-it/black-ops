@@ -5,14 +5,14 @@
    animación simultánea y entran al examen blindado bajo vigilancia en vivo.
    ========================================================================== */
 
-import { store, questions, loadStoreData } from '../store.js?v=20261122k';
-import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, TEST_ALWAYS_A, TEST_MULTI_TAB, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122k';
-import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122k';
+import { store, questions, loadStoreData } from '../store.js?v=20261122l';
+import { perfil, perfilId, isAdscrito, isDocenteSilentDevice, TEST_ALWAYS_A, TEST_MULTI_TAB, setPerfil, markBody, profileByCode, R2_RESIDENTS } from '../perfil.js?v=20261122l';
+import { BOOT_KEY, ROLE_KEY } from './boot.js?v=20261122l';
 import { esc, toast } from '../ui.js';
-import { playUiSfx } from './audio.js?v=20261122k';
-import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122k';
-import { playCalotEvaluation } from './eval-cinematic.js?v=20261122k';
-import { detectCurrentBrowser } from './browser-check.js?v=20261122k';
+import { playUiSfx } from './audio.js?v=20261122l';
+import { unlockPortalAudio, getEngine } from './portal-audio.js?v=20261122l';
+import { playCalotEvaluation } from './eval-cinematic.js?v=20261122l';
+import { detectCurrentBrowser } from './browser-check.js?v=20261122l';
 
 const ENDPOINT = '/api/examen';
 
@@ -107,9 +107,9 @@ async function buildQuestionPool(topic, count, seedStr, correctFirst = false) {
     const items = [];
     try {
       const [argos, v1, v2] = await Promise.all([
-        import('../data/juegos_argos.js?v=20261122k'),
-        import('../data/juegos_drive_v1.js?v=20261122k'),
-        import('../data/juegos_drive_v2.js?v=20261122k'),
+        import('../data/juegos_argos.js?v=20261122l'),
+        import('../data/juegos_drive_v1.js?v=20261122l'),
+        import('../data/juegos_drive_v2.js?v=20261122l'),
       ]);
       const rawBlitz = [
         ...(argos.EXTRA_BLITZ_QUESTIONS || []),
@@ -278,7 +278,7 @@ function showClosedScreen(f) {
 /** «Tu repaso personalizado» dentro de la pantalla de sesión cerrada (solo temas de sus errores). */
 async function renderClosedReview(slot, f) {
   try {
-    const m = await import('./exam-review.js?v=20261122k');
+    const m = await import('./exam-review.js?v=20261122l');
     let rec = m.loadReview(f.id, f.sessionId);
     if (!rec && pendingReview) rec = await pendingReview;
     if (!rec || rec.sessionId !== f.sessionId) {
@@ -372,7 +372,7 @@ export function initExamLockdownMonitor() {
       document.body.appendChild(pillEl);
       pillEl.addEventListener('click', (e) => {
         if (e.target.closest('[data-bo-myerrors]')) {
-          import('./exam-review.js?v=20261122k').then((m) => m.openMyErrors(effectiveResident().id)).catch(() => {});
+          import('./exam-review.js?v=20261122l').then((m) => m.openMyErrors(effectiveResident().id)).catch(() => {});
           return;
         }
         if (e.target.closest('[data-bo-switch]')) {
@@ -642,7 +642,7 @@ function launchBlockedScreen(exam, p) {
   root.innerHTML = `
     <div class="bo-takeover-stage">
       <div class="bo-takeover-badge mono">⛔ PROTOCOLO BLACK OPS · NAVEGADOR NO PERMITIDO</div>
-      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122k" alt="" width="96" height="96" /></div>
+      <div class="bo-takeover-eye"><img src="assets/calot-hero.png?v=20261122l" alt="" width="96" height="96" /></div>
       <h1>CAMBIA DE <em>NAVEGADOR</em></h1>
       <p class="bo-takeover-lead">Este examen solo se puede presentar en <b>Safari (iPhone)</b> o <b>Chrome (Android)</b>. Copia el link y ábrelo ahí.</p>
       <div class="bo-takeover-rules mono">
@@ -1248,7 +1248,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         <span class="bo-ret-ring is-b"></span>
         <span class="bo-ret-ring is-c"></span>
         <div class="bo-takeover-eye">
-          <img src="assets/calot-hero.png?v=20261122k" alt="" width="112" height="112" />
+          <img src="assets/calot-hero.png?v=20261122l" alt="" width="112" height="112" />
         </div>
       </div>
       <div class="bo-takeover-title-wrap">
@@ -1839,7 +1839,7 @@ async function launchLockdownOverlay(exam, initialMe, residentProfile = null) {
         all.push({ stem: q.stem, right });
         if (!a || a.i !== rightIdx) items.push({ n: i + 1, stem: q.stem, picked: a ? q.options[a.i] : 'Sin responder', right });
       });
-      pendingReview = import('./exam-review.js?v=20261122k').then((m) => {
+      pendingReview = import('./exam-review.js?v=20261122l').then((m) => {
         const rec = m.buildReview({ residentId: p.id, sessionId: exam.sessionId, title: exam.topicLabel, items, allQuestions: all, topicHint: isCustom ? '' : exam.topic });
         apiPost({ action: 'review_topics', id: p.id, name: p.name, sessionId: exam.sessionId, topics: m.reviewTopics(rec) }).catch(() => {});
         return rec;

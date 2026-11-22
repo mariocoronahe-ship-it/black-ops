@@ -1,11 +1,11 @@
-import { icon } from '../icons.js?v=20261122k';
-import { CATALOGO_RECURSOS as CATALOGO_COMPLETO } from '../data/catalogo_recursos.js?v=20261122k';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122k';
-import { render as renderEscalas, mount as mountEscalas } from './escalas.js?v=20261122k';
+import { icon } from '../icons.js?v=20261122l';
+import { CATALOGO_RECURSOS as CATALOGO_COMPLETO } from '../data/catalogo_recursos.js?v=20261122l';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122l';
+import { render as renderEscalas, mount as mountEscalas } from './escalas.js?v=20261122l';
 import { esc } from '../ui.js';
-import { store } from '../store.js?v=20261122k';
-import { playUiSfx } from '../fx/audio.js?v=20261122k';
-import { queueSubPortal, consumeQueuedSubPortal, playSubPortal } from '../fx/portal.js?v=20261122k';
+import { store } from '../store.js?v=20261122l';
+import { playUiSfx } from '../fx/audio.js?v=20261122l';
+import { queueSubPortal, consumeQueuedSubPortal, playSubPortal } from '../fx/portal.js?v=20261122l';
 import * as S from '../scroll.js';
 
 export const section = 'atlas';

@@ -9,7 +9,7 @@
    ========================================================================== */
 
 import { esc } from '../ui.js';
-import { examOrderFor } from '../fx/exam-lockdown.js?v=20261122k';
+import { examOrderFor } from '../fx/exam-lockdown.js?v=20261122l';
 
 const clip = (s, n = 70) => { const x = String(s || '').replace(/\s+/g, ' ').trim(); return x.length > n ? `${x.slice(0, n - 1)}…` : x; };
 const STATUS = (pct) => (pct >= 80 ? 'is-good' : pct >= 60 ? 'is-warn' : 'is-bad');

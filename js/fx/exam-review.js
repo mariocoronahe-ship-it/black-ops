@@ -7,7 +7,7 @@
    ========================================================================== */
 
 import { esc, md } from '../ui.js';
-import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122k';
+import { TEMARIO_APRENDE } from '../data/temario_aprende.js?v=20261122l';
 
 const STORE_KEY = 'bo:exam-review'; // + ':<residente>' → [{ sessionId, title, at, items }]
 

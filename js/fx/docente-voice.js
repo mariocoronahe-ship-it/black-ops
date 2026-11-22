@@ -9,11 +9,13 @@
      existe, cae a la voz del navegador (es-MX) con el mismo texto.
    ========================================================================== */
 
-import { DOCENTE_LINES } from './docente-voice-lines.js?v=20261122k';
+import { DOCENTE_LINES } from './docente-voice-lines.js?v=20261122l';
 
 const MUTE_KEY = 'bo:docente-voz';
 const WELCOME_KEY = 'bo:docente-bienvenida';
 const BASE_URL = 'assets/voz/docente/';
+// Se sube junto con la caché de la app: evita que quede guardado un 404 de antes de tener los mp3
+const AUDIO_VER = '20261122l';
 
 let ctx = null;
 let unlocked = false;
@@ -80,7 +82,7 @@ async function loadBuf(key) {
   const c = ensureCtx();
   if (!c) return null;
   try {
-    const r = await fetch(`${BASE_URL}${key}.mp3`, { cache: 'force-cache' });
+    const r = await fetch(`${BASE_URL}${key}.mp3?v=${AUDIO_VER}`);
     if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) throw new Error('missing');
     const ab = await r.arrayBuffer();
     const buf = await new Promise((res, rej) => {
@@ -137,8 +139,11 @@ function playBuf(buf) {
       const src = c.createBufferSource();
       const g = c.createGain();
       g.gain.value = 0.95;
+      // Paso-bajo suave: quita agudos ásperos sin apagar la voz
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 6500; lp.Q.value = 0.5;
       src.buffer = buf;
-      src.connect(g); g.connect(c.destination);
+      src.connect(lp); lp.connect(g); g.connect(c.destination);
       let done = false;
       const end = () => { if (!done) { done = true; resolve(); } };
       src.onended = end;
